@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Andamento demografico dei comuni della Regione Veneto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  :root{
+    --ink:#101c33;
+    --ink-2:#182a4a;
+    --surface:#f4f1e8;
+    --paper:#fbfaf5;
+    --paper-line:#dfd9c8;
+    --gold:#b8902f;
+    --gold-soft:#e4cf9a;
+    --complete:#3f7d5c;
+    --complete-bg:#e4efe6;
+    --assenti:#a83f31;
+    --assenti-bg:#f4e0da;
+    --muted:#5c6478;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--surface);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.45;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px 100px;}
+
+  /* ---------- HEADER ---------- */
+  header.top{
+    background:var(--ink);
+    color:#eee7d4;
+    padding:56px 0 44px;
+    border-bottom:5px solid var(--gold);
+  }
+  header.top .wrap{padding-top:0;padding-bottom:0;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--gold-soft);
+    display:flex;align-items:center;gap:10px;margin-bottom:18px;
+  }
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--gold-soft);display:inline-block;}
+  h1{
+    font-family:'Source Serif 4', serif;font-weight:600;
+    font-size:clamp(30px,4vw,46px);margin:0 0 14px;letter-spacing:-.01em;max-width:1200px;
+  }
+  header.top p.sub{max-width:640px;color:#c8c2ab;font-size:15.5px;margin:0;}
+  .info-badge{
+    display:inline-flex;align-items:center;gap:8px;margin-top:20px;
+    background:var(--complete-bg);color:var(--complete);
+    font-family:'IBM Plex Mono', monospace;font-size:12px;letter-spacing:.04em;
+    padding:6px 12px;border-radius:20px;
+  }
+
+  /* ---------- SECTION SHELL ---------- */
+  section.block{padding:52px 0 0;}
+  .block-head{margin-bottom:20px;}
+  .block-head .kicker{
+    font-family:'IBM Plex Mono', monospace;font-size:11.5px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--gold);margin-bottom:8px;
+  }
+  .block-head h2{font-family:'Source Serif 4', serif;font-size:25px;font-weight:600;margin:0 0 6px;}
+  .block-head p{margin:0;color:var(--muted);font-size:14.5px;max-width:640px;}
+
+  .panel{
+    background:var(--paper);border:1px solid var(--paper-line);border-radius:var(--radius);
+    padding:26px 28px 30px;
+  }
+
+  /* ---------- FIELDS / SELECTS ---------- */
+  .select-row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;}
+  .field{display:flex;flex-direction:column;min-width:200px;}
+  .field label{
+    display:block;font-size:12px;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:7px;font-weight:500;
+  }
+  select, input[type=text]{
+    width:100%;padding:11px 34px 11px 12px;border-radius:7px;border:1px solid var(--paper-line);
+    background:#fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8"><path d="M1 1l5 5 5-5" stroke="%235c6478" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat right 12px center;
+    appearance:none;-webkit-appearance:none;
+    font-family:'IBM Plex Sans',sans-serif;font-size:14.5px;color:var(--ink);cursor:pointer;
+  }
+  input[type=text]{background-image:none;padding-right:12px;cursor:text;}
+  select:focus-visible, button:focus-visible, input:focus-visible{outline:2px solid var(--gold);outline-offset:1px;}
+
+  /* ---------- PILLS (toggle top/bottom) ---------- */
+  .pill-row{
+    display:inline-flex;border:1px solid var(--paper-line);border-radius:8px;
+    overflow:hidden;background:#fff;
+  }
+  .pill{
+    font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;font-weight:500;
+    padding:9px 18px;border:none;border-right:1px solid var(--paper-line);background:#fff;
+    cursor:pointer;color:var(--ink);transition:background .15s, color .15s;
+  }
+  .pill:last-child{border-right:none;}
+  .pill.active{background:var(--gold);color:#fff;font-weight:600;}
+  .pill:hover:not(.active){background:var(--surface);}
+
+  /* ---------- YEAR / PLAY CONTROLS ---------- */
+  .year-control{flex:2;min-width:360px;display:flex;flex-direction:column;}
+  .year-slider-row{display:flex;align-items:center;gap:16px;}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;flex:1;min-width:0;display:block;
+    height:2px;background:var(--paper-line);border-radius:2px;padding:0;margin:0;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:8px;height:8px;border-radius:50%;
+    background:var(--ink);cursor:pointer;margin-top:-3px;
+  }
+  input[type=range]::-moz-range-thumb{width:8px;height:8px;border-radius:50%;background:var(--ink);border:none;cursor:pointer;}
+  input[type=range]::-moz-range-track{height:2px;background:var(--paper-line);border-radius:2px;}
+  .year-ticks{
+    display:flex;justify-content:space-between;margin-top:8px;padding-left:54px;
+    font-family:'IBM Plex Mono', monospace;font-size:11px;color:var(--muted);
+  }
+  .year-ticks span{flex:0 0 auto;transition:color .15s, font-weight .15s;}
+  .year-ticks span.current{color:var(--ink);font-weight:600;}
+  button.play-btn{
+    width:38px;height:38px;border-radius:50%;flex-shrink:0;padding:0;
+    display:flex;align-items:center;justify-content:center;
+    border:none;background:var(--ink);color:#fff;cursor:pointer;font-size:12px;
+  }
+  button.play-btn:hover{background:var(--ink-2);}
+
+  /* ---------- RANKING CHART ---------- */
+  .chart-wrap{position:relative;}
+  .year-watermark{
+    position:absolute;top:34px;right:6px;
+    font-family:'Source Serif 4', serif;font-weight:700;font-size:44px;
+    color:#a3a3a3;line-height:1;pointer-events:none;user-select:none;
+    z-index:0;
+  }
+  .year-watermark.bottom{top:auto;bottom:6px;}
+  #ranking-chart{width:100%;margin-top:24px;position:relative;z-index:1;}
+  .bar-rank{stroke-width:0;}
+  .bar-label-name{font-size:13px;fill:var(--ink);font-family:'IBM Plex Sans', sans-serif;}
+  .bar-label-value{font-size:12px;fill:var(--muted);font-family:'IBM Plex Mono', monospace;}
+  .rank-num{font-size:12px;fill:var(--muted);font-family:'IBM Plex Mono', monospace;}
+
+  /* ---------- COMPARE LAYOUT ---------- */
+  .compare-layout{display:grid;grid-template-columns:240px 1fr;gap:28px;margin-top:22px;}
+  @media (max-width:820px){.compare-layout{grid-template-columns:1fr;}}
+  .comune-picker{border-right:1px dashed var(--paper-line);padding-right:22px;max-height:420px;display:flex;flex-direction:column;}
+  @media (max-width:820px){.comune-picker{border-right:none;border-bottom:1px dashed var(--paper-line);padding-right:0;padding-bottom:18px;max-height:none;}}
+  .comune-list{overflow-y:auto;margin-top:14px;padding-right:4px;}
+
+  .selected-block{margin-top:16px;padding-top:14px;border-top:1px dashed var(--paper-line);}
+  .selected-label{
+    display:block;font-size:12px;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:9px;font-weight:500;
+  }
+  .selected-chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    background:#fff;border:1px solid var(--paper-line);border-radius:20px;
+    padding:5px 6px 5px 10px;font-size:12.5px;color:var(--ink);
+  }
+  .chip .swatch{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .chip button{
+    border:none;background:var(--surface);color:var(--muted);
+    width:16px;height:16px;border-radius:50%;font-size:11px;line-height:1;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;
+  }
+  .chip button:hover{background:var(--assenti);color:#fff;}
+  .selected-chips .empty-note{font-size:12.5px;color:var(--muted);padding:0;}
+  .comune-item{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:13.5px;cursor:pointer;}
+  .comune-item input{accent-color:var(--gold);}
+  .comune-item .swatch{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+
+  .range-row{display:flex;gap:12px;margin-bottom:8px;}
+  .range-row .field{flex:1;}
+
+  #line-chart{width:100%;margin-top:10px;}
+  .trend-line{fill:none;stroke-width:2.4px;}
+  .trend-dot{stroke:#fbfaf5;stroke-width:1.5px;}
+  .axis text{font-family:'IBM Plex Sans', sans-serif;font-size:11px;fill:var(--muted);}
+  .axis line, .axis path{stroke:var(--paper-line);}
+  .gridline line{stroke:#ece7d9;}
+  .gridline path{display:none;}
+
+  /* ---------- TABLE ---------- */
+  .table-scroll{overflow-x:auto;border:1px solid var(--paper-line);border-radius:8px;margin-top:22px;}
+  table.var-table{width:100%;border-collapse:collapse;font-size:13.8px;background:#fff;}
+  table.var-table thead th{
+    text-align:right;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);
+    padding:10px 14px;border-bottom:2px solid var(--ink);white-space:nowrap;background:var(--paper);
+  }
+  table.var-table thead th:first-child, table.var-table tbody td:first-child{text-align:left;}
+  table.var-table thead th:first-child{padding-left:31px;} /* allinea "COMUNE" al testo dopo il pallino colorato */
+  table.var-table tbody td{padding:9px 14px;border-bottom:1px solid var(--paper-line);white-space:nowrap;font-family:'IBM Plex Mono', monospace;text-align:right;}
+  table.var-table tbody td:first-child{font-family:'IBM Plex Sans', sans-serif;}
+  table.var-table tbody tr:hover{background:var(--surface);}
+  table.var-table td.positive{color:var(--complete);}
+  table.var-table td.negative{color:var(--assenti);}
+  table.var-table .comune-cell{display:flex;align-items:center;gap:8px;}
+  table.var-table .swatch{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0;}
+
+  .empty-note{color:var(--muted);font-size:13.5px;padding:20px 0;}
+  #table-container .empty-note{text-align:center;}
+
+  footer{
+    margin-top:60px;padding:26px 0;border-top:1px solid var(--paper-line);
+    color:var(--muted);font-size:12.5px;font-family:'IBM Plex Mono', monospace;line-height:1.6;
+  }
+  footer code{background:var(--gold-soft);color:var(--ink);padding:1px 5px;border-radius:3px;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">Serie storica ISTAT · 1871–2026</div>
+    <h1>Andamento demografico dei comuni della Regione Veneto</h1>
+    <p class="sub">Popolazione residente per comune. Filtra per provincia, scorri gli anni per vedere come cambia la classifica, poi scegli i comuni da confrontare nel tempo.</p>
+    <span class="info-badge">560 comuni · 7 province</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section class="block">
+    <div class="block-head">
+      <div class="kicker">Classifica dinamica</div>
+      <h2>Top 10 comuni per anno</h2>
+      <p>I 10 comuni più (o meno) popolosi nell'anno selezionato. Premi Avvia per scorrere automaticamente tutti gli anni disponibili.</p>
+    </div>
+    <div class="panel">
+      <div class="select-row">
+        <div class="field">
+          <label for="provincia-select-rank">Provincia</label>
+          <select id="provincia-select-rank"></select>
+        </div>
+        <div class="field">
+          <label>Ordina per</label>
+          <div class="pill-row" id="rank-direction-toggle">
+            <button data-dir="top" class="pill active">Più popolosi</button>
+            <button data-dir="bottom" class="pill">Meno popolosi</button>
+          </div>
+        </div>
+        <div class="field year-control">
+          <label for="year-slider">Anno</label>
+          <div class="year-slider-row">
+            <button class="play-btn" id="play-btn" aria-label="Avvia"><span id="play-icon">&#9654;</span></button>
+            <input type="range" id="year-slider">
+          </div>
+          <div class="year-ticks" id="year-ticks"></div>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <div class="year-watermark" id="year-watermark"></div>
+        <svg id="ranking-chart"></svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="block-head">
+      <div class="kicker">Confronto</div>
+      <h2>Confronta i comuni nel tempo</h2>
+      <p>Seleziona uno o più comuni per vedere l'evoluzione della popolazione e le variazioni tra due anni a scelta.</p>
+    </div>
+    <div class="panel">
+      <div class="compare-layout">
+        <div class="comune-picker">
+          <div class="field">
+            <label for="provincia-select-compare">Provincia</label>
+            <select id="provincia-select-compare"></select>
+          </div>
+          <div class="field" style="margin-top:14px;">
+            <label for="comune-search">Cerca comune</label>
+            <input type="text" id="comune-search" placeholder="">
+          </div>
+          <div class="comune-list" id="comune-list"></div>
+
+          <div class="selected-block">
+            <label class="selected-label">Comuni selezionati</label>
+            <div class="selected-chips" id="selected-chips"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="range-row">
+            <div class="field">
+              <label for="year-from">Confronta da</label>
+              <select id="year-from"></select>
+            </div>
+            <div class="field">
+              <label for="year-to">a</label>
+              <select id="year-to"></select>
+            </div>
+          </div>
+
+          <svg id="line-chart"></svg>
+
+          <div class="table-scroll" id="table-container"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer></footer>
+
+</div>
+
+<script>
+/* =========================================================================
+   DATI REALI — importati dai 7 file provinciali forniti
+   ========================================================================= */
+</script>
+<script>
+const YEARS = [1871, 1881, 1901, 1911, 1921, 1931, 1936, 1951, 1961, 1971, 1981, 1991, 2001, 2011, 2022, 2026];
+const RAW_ROWS = [{"comune": "Agordo", "provincia": "Belluno", "values": [3441, 3429, 3305, 3438, 3315, 3354, 3119, 3516, 3522, 3703, 4315, 4343, 4281, 4249, 4059, 4062]}, {"comune": "Alleghe", "provincia": "Belluno", "values": [1379, 1588, 1815, 1956, 2088, 1791, 1738, 1910, 1862, 1691, 1569, 1480, 1408, 1331, 1103, 1064]}, {"comune": "Alpago", "provincia": "Belluno", "values": [5658, 6143, 6999, 7702, 8294, 7873, 7238, 7992, 7700, 7156, 7124, 6909, 7078, 7175, 6618, 6579]}, {"comune": "Arsiè", "provincia": "Belluno", "values": [6884, 7051, 7694, 8675, 8264, 6827, 5704, 6318, 5304, 4050, 3325, 2920, 2806, 2465, 2200, 2174]}, {"comune": "Auronzo di Cadore", "provincia": "Belluno", "values": [4393, 4501, 4346, 4104, 4496, 3751, 3827, 4089, 4058, 3930, 3944, 3801, 3616, 3453, 3057, 2982]}, {"comune": "Belluno", "provincia": "Belluno", "values": [15971, 15935, 19050, 22342, 27119, 26739, 25547, 29160, 31403, 34484, 36634, 35572, 35050, 35591, 35443, 35499]}, {"comune": "Borca di Cadore", "provincia": "Belluno", "values": [1279, 1245, 1343, 700, 894, 551, 531, 564, 671, 699, 739, 686, 774, 818, 840, 790]}, {"comune": "Borgo Valbelluna", "provincia": "Belluno", "values": [12664, 12869, 14202, 15691, 17386, 17212, 14621, 15412, 14461, 13150, 13735, 13497, 13705, 13993, 13418, 13620]}, {"comune": "Calalzo di Cadore", "provincia": "Belluno", "values": [1631, 1691, 1446, 1406, 1503, 1529, 1645, 2019, 2253, 2363, 2445, 2416, 2419, 2173, 1836, 1799]}, {"comune": "Canale d'Agordo", "provincia": "Belluno", "values": [1641, 1717, 1856, 2033, 2023, 1782, 1653, 1818, 1786, 1684, 1472, 1285, 1236, 1172, 1052, 1045]}, {"comune": "Cencenighe Agordino", "provincia": "Belluno", "values": [1704, 1797, 2081, 1862, 2316, 2013, 1750, 1996, 1929, 1730, 1604, 1554, 1484, 1402, 1214, 1202]}, {"comune": "Cesiomaggiore", "provincia": "Belluno", "values": [4195, 4125, 4652, 5482, 6490, 6065, 5104, 5131, 4897, 4271, 4164, 4007, 4084, 4145, 3904, 3954]}, {"comune": "Chies d'Alpago", "provincia": "Belluno", "values": [1800, 1820, 1896, 2017, 2247, 2161, 2038, 2266, 2245, 1955, 1803, 1631, 1570, 1411, 1251, 1244]}, {"comune": "Cibiana di Cadore", "provincia": "Belluno", "values": [1328, 1517, 1636, 1893, 2172, 1588, 1260, 1272, 1054, 917, 740, 645, 483, 423, 332, 323]}, {"comune": "Colle Santa Lucia", "provincia": "Belluno", "values": [null, null, null, null, 754, 719, 664, 677, 623, 603, 556, 480, 418, 391, 343, 339]}, {"comune": "Comelico Superiore", "provincia": "Belluno", "values": [3683, 4101, 4093, 4245, 4403, 4393, 3672, 4102, 3736, 3489, 3113, 2854, 2446, 2341, 2084, 2050]}, {"comune": "Cortina d'Ampezzo", "provincia": "Belluno", "values": [3000, 3120, 3091, 3501, 3367, 4300, 5223, 5600, 7203, 8546, 8109, 7109, 6085, 5890, 5579, 5399]}, {"comune": "Danta di Cadore", "provincia": "Belluno", "values": [466, 571, 677, 636, 716, 726, 669, 765, 774, 669, 636, 603, 552, 514, 432, 421]}, {"comune": "Domegge di Cadore", "provincia": "Belluno", "values": [2617, 2653, 2618, 2695, 2674, 2447, 2486, 2676, 2770, 2793, 2711, 2695, 2645, 2575, 2243, 2235]}, {"comune": "Falcade", "provincia": "Belluno", "values": [2630, 2861, 3179, 3384, 3386, 2815, 2562, 2801, 2834, 2355, 2401, 2270, 2207, 2055, 1805, 1734]}, {"comune": "Feltre", "provincia": "Belluno", "values": [13064, 13258, 15243, 18248, 20127, 18543, 17777, 20783, 22047, 21687, 21003, 19785, 19240, 20525, 20411, 20600]}, {"comune": "Fonzaso", "provincia": "Belluno", "values": [4965, 4793, 5854, 6383, 6868, 5224, 4438, 4523, 4251, 3536, 3536, 3418, 3414, 3322, 3005, 2966]}, {"comune": "Gosaldo", "provincia": "Belluno", "values": [2935, 2907, 3156, 3067, 3045, 2755, 2539, 2738, 2373, 1825, 1192, 1034, 884, 723, 518, 511]}, {"comune": "La Valle Agordina", "provincia": "Belluno", "values": [2013, 2007, 2160, 2301, 2260, 2020, 1593, 1783, 1628, 1263, 1321, 1197, 1208, 1150, 1056, 1040]}, {"comune": "Lamon", "provincia": "Belluno", "values": [6153, 4356, 7071, 6785, 7678, 7321, 6840, 7413, 6530, 4214, 4120, 3743, 3412, 3046, 2634, 2576]}, {"comune": "Limana", "provincia": "Belluno", "values": [2131, 2289, 2597, 3066, 3794, 3820, 3283, 3610, 3701, 3579, 3984, 4165, 4509, 5061, 5367, 5455]}, {"comune": "Livinallongo del Col di Lana", "provincia": "Belluno", "values": [null, null, null, null, 2044, 2036, 2022, 1863, 1880, 1718, 1576, 1440, 1417, 1384, 1244, 1218]}, {"comune": "Longarone", "provincia": "Belluno", "values": [5743, 5809, 6015, 6907, 6970, 6464, 6185, 7302, 7036, 6016, 6496, 6065, 5838, 5555, 5037, 4982]}, {"comune": "Lorenzago di Cadore", "provincia": "Belluno", "values": [1043, 1169, 1114, 1196, 1080, 873, 854, 775, 726, 675, 677, 646, 578, 567, 570, 527]}, {"comune": "Lozzo di Cadore", "provincia": "Belluno", "values": [1825, 1912, 1946, 1920, 2009, 1752, 1784, 1846, 1759, 1776, 1689, 1567, 1615, 1497, 1258, 1212]}, {"comune": "Ospitale di Cadore", "provincia": "Belluno", "values": [1016, 1085, 1076, 1406, 1443, 952, 780, 814, 797, 549, 438, 395, 365, 326, 262, 259]}, {"comune": "Pedavena", "provincia": "Belluno", "values": [2917, 3185, 3424, 4177, 4403, 4116, 3486, 4402, 4279, 4112, 4125, 4177, 4387, 4429, 4301, 4321]}, {"comune": "Perarolo di Cadore", "provincia": "Belluno", "values": [1655, 1797, 1911, 2156, 1966, 1228, 1011, 864, 673, 437, 359, 312, 362, 383, 377, 359]}, {"comune": "Pieve di Cadore", "provincia": "Belluno", "values": [3748, 3835, 3635, 3748, 4189, 4293, 3244, 3673, 3893, 4019, 4128, 4040, 3858, 3956, 3646, 3588]}, {"comune": "Ponte nelle Alpi", "provincia": "Belluno", "values": [3860, 4274, 5128, 6089, 6113, 5440, 5190, 6265, 6489, 7045, 7327, 7562, 7913, 8387, 7918, 7903]}, {"comune": "Rivamonte Agordino", "provincia": "Belluno", "values": [2217, 2109, 2020, 2035, 2216, 1946, 1551, 1649, 1484, 1039, 914, 739, 688, 666, 622, 592]}, {"comune": "Rocca Pietore", "provincia": "Belluno", "values": [2234, 2335, 2743, 2861, 3069, 2940, 2540, 2654, 2507, 1971, 1772, 1603, 1451, 1322, 1152, 1119]}, {"comune": "San Gregorio nelle Alpi", "provincia": "Belluno", "values": [1860, 1884, 2014, 2293, 2413, 2213, 1853, 1918, 1722, 1419, 1477, 1386, 1599, 1607, 1566, 1582]}, {"comune": "San Nicolò di Comelico", "provincia": "Belluno", "values": [669, 698, 673, 566, 678, 663, 552, 559, 561, 475, 447, 433, 426, 405, 383, 368]}, {"comune": "San Pietro di Cadore", "provincia": "Belluno", "values": [1931, 2203, 2494, 2950, 3004, 3037, 2680, 2883, 2721, 2356, 2196, 2005, 1839, 1690, 1500, 1412]}, {"comune": "San Tomaso Agordino", "provincia": "Belluno", "values": [1332, 1461, 1918, 2195, 2449, 1974, 1612, 1730, 1508, 1218, 1038, 877, 812, 683, 599, 593]}, {"comune": "San Vito di Cadore", "provincia": "Belluno", "values": [1729, 1789, 1778, 1251, 1117, 1006, 1017, 1157, 1325, 1413, 1497, 1645, 1718, 1813, 1936, 1925]}, {"comune": "Santa Giustina", "provincia": "Belluno", "values": [4201, 4630, 5708, 6026, 6585, 5805, 5396, 5727, 5749, 5495, 5854, 6131, 6428, 6767, 6623, 6621]}, {"comune": "Santo Stefano di Cadore", "provincia": "Belluno", "values": [2324, 2451, 2992, 3052, 3245, 3213, 2990, 3292, 3313, 3032, 3011, 3021, 2905, 2663, 2360, 2276]}, {"comune": "Sedico", "provincia": "Belluno", "values": [3976, 4293, 4972, 6177, 6772, 6506, 5953, 6983, 7245, 7189, 7706, 8056, 8701, 9906, 10140, 10134]}, {"comune": "Selva di Cadore", "provincia": "Belluno", "values": [1037, 878, 952, 940, 932, 870, 763, 729, 748, 617, 586, 604, 563, 517, 501, 504]}, {"comune": "Seren del Grappa", "provincia": "Belluno", "values": [4273, 4833, 4661, 5264, 5025, 4433, 3705, 3820, 3364, 2785, 2534, 2480, 2607, 2557, 2336, 2323]}, {"comune": "Sospirolo", "provincia": "Belluno", "values": [3333, 3406, 3761, 4769, 4862, 4524, 3978, 4528, 4216, 3527, 3559, 3365, 3193, 3213, 3066, 3130]}, {"comune": "Soverzene", "provincia": "Belluno", "values": [451, 285, 231, 246, 233, 248, 287, 378, 402, 435, 443, 414, 422, 418, 367, 362]}, {"comune": "Sovramonte", "provincia": "Belluno", "values": [3569, 3585, 3666, 4225, 4308, 3460, 3102, 3438, 2904, 2150, 1981, 1818, 1697, 1514, 1291, 1287]}, {"comune": "Taibon Agordino", "provincia": "Belluno", "values": [1888, 2076, 2179, 2220, 2457, 1998, 1739, 1879, 1824, 1743, 1811, 1705, 1772, 1788, 1730, 1710]}, {"comune": "Tambre", "provincia": "Belluno", "values": [2173, 2053, 2283, 2331, 2565, 2237, 2015, 2290, 2138, 1906, 1779, 1654, 1529, 1425, 1292, 1261]}, {"comune": "Val di Zoldo", "provincia": "Belluno", "values": [6374, 7001, 7309, 7469, 7667, 6470, 5998, 6003, 5996, 5414, 4650, 4447, 4076, 3464, 2765, 2708]}, {"comune": "Vallada Agordina", "provincia": "Belluno", "values": [1192, 1266, 1246, 1268, 1388, 1034, 926, 1004, 962, 722, 693, 596, 556, 514, 465, 458]}, {"comune": "Valle di Cadore", "provincia": "Belluno", "values": [2752, 2883, 3083, 3162, 2807, 2250, 2140, 2396, 2327, 2171, 2140, 2021, 2033, 2052, 1847, 1812]}, {"comune": "Vigo di Cadore", "provincia": "Belluno", "values": [2079, 2478, 2304, 2381, 2940, 1914, 1861, 1940, 1815, 1767, 1766, 1709, 1650, 1499, 1350, 1322]}, {"comune": "Vodo Cadore", "provincia": "Belluno", "values": [2439, 2506, 1584, 2536, 2773, 1091, 966, 1184, 1054, 1016, 963, 944, 936, 891, 824, 822]}, {"comune": "Voltago Agordino", "provincia": "Belluno", "values": [1198, 1248, 1295, 1426, 1478, 1383, 1341, 1443, 1358, 1210, 1087, 1017, 991, 914, 811, 785]}, {"comune": "Zoppè di Cadore", "provincia": "Belluno", "values": [581, 640, 692, 686, 653, 596, 534, 491, 482, 440, 375, 312, 303, 265, 196, 175]}, {"comune": "Setteville", "provincia": "Belluno", "values": [6475, 6816, 7674, 7952, 8394, 8322, 7274, 7629, 6725, 5589, 5567, 5427, 5949, 6264, 5771, 5952]}, {"comune": "Abano Terme", "provincia": "Padova", "values": [3372, 3901, 4541, 5450, 6082, 6763, 7062, 8377, 11024, 13693, 16405, 17735, 18206, 19349, 19868, 20479]}, {"comune": "Agna", "provincia": "Padova", "values": [2817, 3219, 3379, 3894, 4184, 4748, 5032, 4835, 3497, 3069, 3119, 3085, 3158, 3400, 3181, 3175]}, {"comune": "Albignasego", "provincia": "Padova", "values": [3196, 3629, 4308, 5287, 5912, 7004, 7288, 8035, 9712, 13449, 15334, 15334, 19147, 23464, 26006, 27601]}, {"comune": "Anguillara Veneta", "provincia": "Padova", "values": [4000, 4259, 4118, 4940, 5473, 6521, 7146, 7120, 6120, 5767, 5479, 5204, 4739, 4594, 4190, 4076]}, {"comune": "Arquà Petrarca", "provincia": "Padova", "values": [1317, 1437, 1590, 1876, 2090, 2292, 2487, 2544, 2125, 1951, 2007, 1947, 1876, 1847, 1827, 1781]}, {"comune": "Arre", "provincia": "Padova", "values": [1621, 1747, 1913, 2258, 2672, 2954, 3017, 2975, 2275, 2006, 1984, 1977, 2029, 2191, 2104, 2089]}, {"comune": "Arzergrande", "provincia": "Padova", "values": [2288, 2361, 2912, 3690, 4411, 5069, 5229, 5009, 4181, 4021, 3973, 4040, 4113, 4682, 4794, 4841]}, {"comune": "Bagnoli di Sopra", "provincia": "Padova", "values": [3054, 3273, 3652, 4199, 4705, 5062, 5403, 5933, 4847, 4109, 4078, 3884, 3882, 3626, 3313, 3361]}, {"comune": "Baone", "provincia": "Padova", "values": [2674, 2946, 3252, 3788, 4087, 4172, 4343, 4304, 3388, 2801, 2932, 3104, 3138, 3108, 3093, 3024]}, {"comune": "Barbona", "provincia": "Padova", "values": [1528, 1490, 1442, 1555, 1704, 1726, 1759, 1712, 1205, 1055, 892, 800, 780, 733, 611, 567]}, {"comune": "Battaglia Terme", "provincia": "Padova", "values": [1662, 1761, 2057, 2210, 2404, 2517, 2712, 3476, 4123, 4234, 4323, 4082, 4152, 3933, 3826, 3869]}, {"comune": "Boara Pisani", "provincia": "Padova", "values": [2509, 2490, 2372, 2815, 3203, 3578, 3705, 3961, 3004, 2699, 2705, 2498, 2507, 2611, 2402, 2362]}, {"comune": "Borgo Veneto", "provincia": "Padova", "values": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, 7005, 7045]}, {"comune": "Borgoricco", "provincia": "Padova", "values": [3460, 3738, 4020, 4867, 5459, 5693, 5675, 5679, 5355, 5397, 5837, 6019, 6939, 8478, 8930, 9084]}, {"comune": "Bovolenta", "provincia": "Padova", "values": [3088, 3129, 3150, 3721, 4068, 4229, 4330, 4258, 3394, 2965, 3064, 3088, 3144, 3349, 3463, 3394]}, {"comune": "Brugine", "provincia": "Padova", "values": [3411, 3697, 3978, 4683, 5456, 6012, 6106, 5373, 4430, 4186, 4612, 5225, 6107, 6812, 7156, 7178]}, {"comune": "Cadoneghe", "provincia": "Padova", "values": [2197, 2481, 3044, 3966, 4491, 5265, 5679, 6376, 7419, 9485, 10850, 13660, 14755, 15964, 15875, 15763]}, {"comune": "Campo San Martino", "provincia": "Padova", "values": [2492, 2630, 3200, 3976, 4351, 4356, 4362, 4162, 4003, 4337, 4925, 5100, 5371, 5724, 5621, 5547]}, {"comune": "Campodarsego", "provincia": "Padova", "values": [3528, 4032, 4947, 6542, 7183, 7289, 7701, 8111, 8131, 9390, 10226, 10462, 11474, 14169, 14810, 15128]}, {"comune": "Campodoro", "provincia": "Padova", "values": [1403, 1592, 1975, 2164, 2419, 2273, 2284, 2307, 1881, 1625, 1704, 1934, 2170, 2725, 2572, 2727]}, {"comune": "Camposampiero", "provincia": "Padova", "values": [3323, 3705, 4347, 5370, 6211, 6378, 6541, 6617, 6526, 7607, 8352, 9399, 10680, 12019, 11812, 11878]}, {"comune": "Candiana", "provincia": "Padova", "values": [2023, 2202, 2457, 2848, 3277, 3707, 4004, 3957, 3076, 2698, 2470, 2386, 2455, 2468, 2230, 2142]}, {"comune": "Carmignano di Brenta", "provincia": "Padova", "values": [1414, 1668, 2218, 3135, 3533, 3836, 4050, 4904, 5427, 6257, 6567, 6823, 7027, 7540, 7456, 7546]}, {"comune": "Cartura", "provincia": "Padova", "values": [2499, 2684, 2850, 3270, 3712, 4091, 4236, 4675, 3944, 4005, 4022, 4101, 4075, 4623, 4565, 4564]}, {"comune": "Casale di Scodosia", "provincia": "Padova", "values": [3570, 3838, 4069, 4743, 5173, 5406, 5611, 5586, 4212, 4084, 4744, 5040, 4856, 4866, 4693, 4637]}, {"comune": "Casalserugo", "provincia": "Padova", "values": [1829, 2006, 2255, 2693, 3001, 3293, 3484, 3581, 3310, 3913, 4627, 4899, 5519, 5452, 5391, 5293]}, {"comune": "Castelbaldo", "provincia": "Padova", "values": [2673, 2936, 2710, 2897, 2971, 2898, 2950, 2862, 2383, 2083, 1910, 1813, 1697, 1625, 1421, 1443]}, {"comune": "Cervarese Santa Croce", "provincia": "Padova", "values": [2102, 2419, 3020, 3548, 4025, 3904, 3930, 4176, 3717, 4005, 4221, 4343, 4725, 5698, 5670, 5557]}, {"comune": "Cinto Euganeo", "provincia": "Padova", "values": [2016, 2123, 2552, 2883, 2921, 2988, 3134, 3452, 2483, 2203, 2103, 2062, 2039, 2023, 1950, 1884]}, {"comune": "Cittadella", "provincia": "Padova", "values": [8570, 9032, 9685, 11332, 12511, 12684, 12966, 13913, 13807, 15918, 17274, 18061, 18743, 19956, 19977, 20047]}, {"comune": "Codevigo", "provincia": "Padova", "values": [2365, 2821, 3739, 4814, 5648, 6358, 7001, 7318, 5518, 5073, 5299, 5384, 5617, 6453, 6391, 6280]}, {"comune": "Conselve", "provincia": "Padova", "values": [4433, 4928, 5358, 6300, 7157, 7712, 8113, 8302, 6885, 7491, 8217, 8460, 8970, 10293, 9927, 9993]}, {"comune": "Correzzola", "provincia": "Padova", "values": [3779, 4378, 5029, 5846, 6929, 8819, 9458, 8965, 6000, 5133, 5055, 5195, 5310, 5488, 5069, 5273]}, {"comune": "Curtarolo", "provincia": "Padova", "values": [2205, 2350, 3026, 3802, 4252, 4600, 4631, 4950, 4770, 5217, 5770, 5930, 6294, 7175, 7116, 7150]}, {"comune": "Due Carrare", "provincia": "Padova", "values": [3599, 3898, 4141, 5056, 5537, 5695, 5847, 6264, 5203, 5120, 5744, 6650, 8101, 8943, 8981, 8974]}, {"comune": "Este", "provincia": "Padova", "values": [10037, 10475, 10779, 11635, 12662, 13631, 14438, 16294, 15651, 17044, 18105, 17668, 16704, 16576, 15980, 15856]}, {"comune": "Fontaniva", "provincia": "Padova", "values": [3064, 3177, 3911, 4914, 5404, 5555, 5658, 5761, 5827, 6783, 7263, 7329, 7460, 8168, 7907, 8094]}, {"comune": "Galliera Veneta", "provincia": "Padova", "values": [2907, 3243, 3600, 4209, 4415, 4586, 4917, 5212, 5236, 5779, 6261, 6326, 6614, 7042, 7066, 7165]}, {"comune": "Galzignano Terme", "provincia": "Padova", "values": [2230, 2294, 2934, 3253, 3687, 4096, 4374, 4804, 4304, 4220, 4292, 4147, 4225, 4416, 4334, 4271]}, {"comune": "Gazzo", "provincia": "Padova", "values": [2073, 2236, 2506, 2959, 3468, 3513, 3630, 3839, 3215, 2892, 3046, 3101, 3457, 4291, 4250, 4295]}, {"comune": "Grantorto", "provincia": "Padova", "values": [1603, 1759, 2191, 2828, 3256, 3405, 3542, 3576, 3049, 3312, 3597, 3741, 3778, 4661, 4530, 4435]}, {"comune": "Granze", "provincia": "Padova", "values": [1784, 1791, 1664, 1902, 2172, 2314, 2331, 2186, 1746, 1495, 1424, 1517, 1671, 2022, 1970, 1873]}, {"comune": "Legnaro", "provincia": "Padova", "values": [3405, 3630, 4272, 4909, 5386, 5819, 5950, 5498, 5066, 5539, 6331, 6567, 6895, 8544, 9353, 9564]}, {"comune": "Limena", "provincia": "Padova", "values": [1816, 2064, 2384, 2962, 3446, 3620, 3439, 3834, 3774, 5028, 5768, 5983, 6858, 7699, 7912, 8237]}, {"comune": "Loreggia", "provincia": "Padova", "values": [2773, 2935, 3318, 4244, 4726, 4710, 4499, 4481, 3912, 3905, 4503, 4977, 5754, 7297, 7596, 7725]}, {"comune": "Lozzo Atestino", "provincia": "Padova", "values": [2973, 3201, 3343, 3824, 4003, 4088, 4389, 4353, 3291, 3101, 3035, 3123, 3108, 3179, 2988, 3076]}, {"comune": "Maserà di Padova", "provincia": "Padova", "values": [2437, 2673, 3034, 3600, 4099, 4492, 4604, 5145, 4660, 4866, 5407, 6457, 7695, 9045, 9194, 9261]}, {"comune": "Masi", "provincia": "Padova", "values": [2216, 2350, 2455, 2730, 3005, 3084, 3077, 2832, 2184, 1845, 1856, 1805, 1802, 1782, 1746, 1823]}, {"comune": "Massanzago", "provincia": "Padova", "values": [1666, 1896, 2145, 2613, 2829, 2991, 2987, 3122, 2792, 2620, 2898, 3543, 4703, 5872, 6067, 6112]}, {"comune": "Megliadino San Vitale", "provincia": "Padova", "values": [2518, 2708, 2777, 3043, 3251, 3172, 3198, 2826, 2361, 2099, 2068, 2072, 1946, 1977, 1813, 1821]}, {"comune": "Merlara", "provincia": "Padova", "values": [2705, 3023, 3073, 3801, 4228, 4405, 4513, 4418, 3512, 3093, 3128, 3048, 2960, 2831, 2529, 2521]}, {"comune": "Mestrino", "provincia": "Padova", "values": [2503, 2982, 3276, 3948, 4352, 4342, 4444, 4429, 4288, 4840, 5730, 6674, 8442, 10961, 11415, 11953]}, {"comune": "Monselice", "provincia": "Padova", "values": [9802, 10428, 11571, 13250, 14233, 15415, 16447, 16886, 16368, 17621, 17538, 17397, 17458, 17451, 17330, 17042]}, {"comune": "Montagnana", "provincia": "Padova", "values": [9262, 9900, 10323, 11554, 12467, 12424, 12702, 12727, 10557, 10161, 10067, 9444, 9391, 9421, 8905, 9193]}, {"comune": "Montegrotto Terme", "provincia": "Padova", "values": [1991, 2110, 2469, 3027, 3437, 3911, 4195, 4841, 5964, 7786, 8914, 9929, 10405, 11074, 11357, 11628]}, {"comune": "Noventa Padovana", "provincia": "Padova", "values": [1630, 1904, 2014, 2435, 2845, 3104, 3264, 3745, 4395, 6709, 7688, 7508, 8083, 10881, 11513, 11268]}, {"comune": "Ospedaletto Euganeo", "provincia": "Padova", "values": [3486, 3655, 3862, 4571, 4989, 5312, 5511, 5326, 4355, 4609, 5065, 5052, 5401, 5876, 5546, 5578]}, {"comune": "Padova", "provincia": "Padova", "values": [64862, 70753, 81242, 96118, 108912, 126843, 138709, 167672, 197680, 231599, 234678, 215137, 204870, 206192, 206535, 208202]}, {"comune": "Pernumia", "provincia": "Padova", "values": [2536, 2719, 2948, 3353, 3692, 3947, 4077, 4230, 3468, 3305, 3436, 3634, 3717, 3915, 3771, 3754]}, {"comune": "Piacenza d'Adige", "provincia": "Padova", "values": [2426, 2582, 2744, 3164, 3414, 3324, 3423, 3307, 2410, 1973, 1648, 1503, 1419, 1379, 1226, 1285]}, {"comune": "Piazzola sul Brenta", "provincia": "Padova", "values": [4634, 5415, 6891, 8839, 9651, 9854, 10142, 10760, 9828, 10265, 10508, 10373, 10682, 11130, 11044, 11074]}, {"comune": "Piombino Dese", "provincia": "Padova", "values": [4348, 4577, 5009, 6679, 7517, 7442, 7088, 6905, 6270, 7146, 7603, 7813, 8604, 9276, 9402, 9550]}, {"comune": "Piove di Sacco", "provincia": "Padova", "values": [8242, 8606, 10021, 11522, 12894, 14514, 15272, 16140, 14349, 15782, 16947, 17353, 17517, 19067, 19862, 20291]}, {"comune": "Polverara", "provincia": "Padova", "values": [1615, 1731, 1891, 2119, 2444, 2584, 2752, 2502, 2113, 2091, 2283, 2271, 2345, 3104, 3393, 3428]}, {"comune": "Ponso", "provincia": "Padova", "values": [1798, 2056, 2109, 2403, 2751, 2992, 3109, 3178, 2477, 2262, 2317, 2291, 2365, 2449, 2378, 2415]}, {"comune": "Ponte San Nicolò", "provincia": "Padova", "values": [1936, 2217, 2674, 3306, 3801, 4465, 4623, 5077, 5288, 6814, 8309, 10589, 12059, 13237, 13354, 13150]}, {"comune": "Pontelongo", "provincia": "Padova", "values": [2130, 2365, 2230, 2857, 3466, 4531, 4809, 5075, 4164, 3713, 3566, 3571, 3759, 3902, 3641, 3698]}, {"comune": "Pozzonovo", "provincia": "Padova", "values": [2398, 2517, 2794, 3243, 3679, 4318, 4655, 4739, 3626, 3413, 3435, 3523, 3445, 3653, 3499, 3455]}, {"comune": "Rovolon", "provincia": "Padova", "values": [2214, 2879, 3423, 4336, 5224, 4882, 4682, 4654, 3858, 3472, 3565, 3834, 4171, 4777, 4857, 4863]}, {"comune": "Rubano", "provincia": "Padova", "values": [1773, 2041, 2415, 2815, 3111, 3138, 3232, 3602, 4775, 7243, 10021, 12573, 13671, 15669, 16631, 17243]}, {"comune": "Saccolongo", "provincia": "Padova", "values": [1939, 2177, 2382, 2987, 3166, 3084, 3088, 3058, 2938, 3345, 3832, 4254, 4477, 4934, 4854, 5029]}, {"comune": "San Giorgio delle Pertiche", "provincia": "Padova", "values": [3026, 3485, 4159, 5252, 6003, 5564, 5595, 5864, 5643, 6608, 6880, 7115, 7846, 9979, 10114, 10092]}, {"comune": "San Giorgio in Bosco", "provincia": "Padova", "values": [3519, 3853, 4437, 5283, 6109, 6011, 6047, 5454, 4698, 4481, 4693, 5284, 5834, 6244, 6370, 6307]}, {"comune": "San Martino di Lupari", "provincia": "Padova", "values": [1871, 5902, 6700, 8047, 8901, 9066, 9052, 9854, 9116, 9641, 10700, 11044, 11420, 13052, 13142, 13319]}, {"comune": "San Pietro in Gu", "provincia": "Padova", "values": [1731, 2023, 2510, 3011, 3268, 3163, 3193, 3468, 3115, 3431, 3961, 4223, 4367, 4576, 4282, 4107]}, {"comune": "San Pietro Viminario", "provincia": "Padova", "values": [1604, 1800, 1931, 2305, 2591, 2816, 2806, 2952, 2347, 2220, 2274, 2347, 2481, 3003, 3051, 2982]}, {"comune": "Santa Giustina in Colle", "provincia": "Padova", "values": [2767, 3237, 3598, 4724, 5605, 5430, 5535, 5426, 4725, 4652, 5312, 5804, 6397, 7131, 7102, 7139]}, {"comune": "Sant'Angelo di Piove di Sacco", "provincia": "Padova", "values": [2615, 2978, 3487, 4233, 4942, 5111, 5266, 5610, 5021, 5605, 5861, 6007, 6665, 7211, 7283, 7347]}, {"comune": "Sant'Elena", "provincia": "Padova", "values": [1391, 1408, 1508, 1780, 2050, 2199, 2295, 2140, 1681, 1587, 1606, 1703, 1764, 2430, 2548, 2514]}, {"comune": "Sant'Urbano", "provincia": "Padova", "values": [3367, 3526, 3424, 3851, 4372, 4939, 5057, 4629, 3293, 2781, 2614, 2454, 2253, 2162, 1911, 1914]}, {"comune": "Saonara", "provincia": "Padova", "values": [2569, 2912, 3249, 3862, 4422, 4790, 4872, 5455, 5710, 6419, 6608, 7149, 8946, 10043, 10531, 10877]}, {"comune": "Selvazzano Dentro", "provincia": "Padova", "values": [2420, 2571, 3053, 3714, 4152, 4568, 4820, 5053, 6217, 11925, 17393, 18809, 19753, 22145, 23005, 22931]}, {"comune": "Solesino", "provincia": "Padova", "values": [2507, 2655, 2973, 3706, 4322, 5088, 5429, 6085, 6079, 6830, 7144, 7022, 7071, 7180, 6809, 6712]}, {"comune": "Stanghella", "provincia": "Padova", "values": [3515, 3521, 3458, 4242, 4738, 5118, 5444, 5485, 4434, 4458, 4609, 4580, 4458, 4331, 4123, 4165]}, {"comune": "Teolo", "provincia": "Padova", "values": [3804, 4152, 4803, 5670, 6420, 6536, 6783, 7272, 6693, 6705, 6961, 7715, 8277, 8866, 8945, 8930]}, {"comune": "Terrassa Padovana", "provincia": "Padova", "values": [1571, 1592, 1697, 2045, 2326, 2689, 2857, 2761, 2146, 1898, 1894, 2049, 2128, 2625, 2697, 2716]}, {"comune": "Tombolo", "provincia": "Padova", "values": [2754, 2954, 3487, 4148, 4479, 4898, 4988, 5683, 5559, 5946, 6374, 6542, 6944, 8227, 8278, 8184]}, {"comune": "Torreglia", "provincia": "Padova", "values": [2192, 2304, 2574, 3051, 3498, 3686, 3835, 4261, 4174, 4626, 5276, 5709, 5880, 6206, 6119, 6029]}, {"comune": "Trebaseleghe", "provincia": "Padova", "values": [4270, 4616, 5092, 6497, 7622, 8327, 8411, 8144, 7106, 7750, 8767, 9454, 10998, 12579, 12827, 12968]}, {"comune": "Tribano", "provincia": "Padova", "values": [3729, 3777, 3986, 4334, 4832, 5387, 5795, 5749, 4267, 3865, 3901, 3813, 3992, 4431, 4238, 4219]}, {"comune": "Urbana", "provincia": "Padova", "values": [1939, 2089, 2120, 2470, 2719, 2803, 2770, 2669, 2182, 1954, 2049, 2177, 2235, 2186, 2063, 2016]}, {"comune": "Veggiano", "provincia": "Padova", "values": [1564, 1747, 2186, 2477, 2744, 2626, 2636, 2782, 2198, 1878, 2024, 2222, 2922, 4543, 4758, 4812]}, {"comune": "Vescovana", "provincia": "Padova", "values": [2206, 2215, 2156, 2568, 2712, 2646, 2706, 2794, 2034, 1697, 1574, 1583, 1568, 1717, 1737, 1646]}, {"comune": "Vigodarzere", "provincia": "Padova", "values": [2867, 3420, 3909, 4748, 5409, 5937, 6086, 6679, 7006, 8073, 8614, 9433, 11702, 12885, 13082, 13281]}, {"comune": "Vigonza", "provincia": "Padova", "values": [4761, 5441, 6612, 7977, 9154, 9713, 10100, 11067, 11458, 13843, 15107, 16681, 19458, 21993, 22954, 23465]}, {"comune": "Villa del Conte", "provincia": "Padova", "values": [2323, 2479, 2885, 3937, 4633, 4562, 4548, 4454, 3676, 3969, 4469, 4846, 5030, 5504, 5468, 5617]}, {"comune": "Villa Estense", "provincia": "Padova", "values": [2534, 2851, 2531, 3114, 3543, 3934, 3936, 3741, 2917, 2660, 2558, 2386, 2423, 2322, 2096, 2021]}, {"comune": "Villafranca Padovana", "provincia": "Padova", "values": [2506, 2749, 3444, 4203, 4472, 4769, 4709, 5095, 4631, 5338, 6237, 6784, 7952, 9797, 10545, 10580]}, {"comune": "Villanova di Camposampiero", "provincia": "Padova", "values": [1773, 2035, 2578, 3267, 3780, 3829, 4042, 4072, 3865, 4078, 4375, 4514, 4849, 5929, 6109, 6140]}, {"comune": "Vo'", "provincia": "Padova", "values": [2655, 2968, 3378, 3793, 4084, 4019, 4120, 4312, 3735, 3677, 3655, 3399, 3432, 3417, 3275, 3211]}, {"comune": "Santa Caterina d'Este", "provincia": "Padova", "values": [3288, 3450, 3527, 3812, 4062, 4342, 4447, 4598, 3382, 2760, 2603, 2513, 2452, 2535, 2401, 2319]}, {"comune": "Adria", "provincia": "Rovigo", "values": [17732, 19697, 20396, 24186, 27792, 30966, 32762, 34314, 26027, 21354, 21841, 21225, 20640, 20233, 18776, 18878]}, {"comune": "Ariano nel Polesine", "provincia": "Rovigo", "values": [4377, 5465, 6688, 9311, 10911, 11740, 12372, 12770, 8333, 6299, 5584, 5239, 4882, 4882, 3939, 3757]}, {"comune": "Arquà Polesine", "provincia": "Rovigo", "values": [2847, 3154, 2882, 3327, 3593, 3851, 4194, 4515, 3671, 3267, 3082, 2909, 2896, 2811, 2602, 2578]}, {"comune": "Badia Polesine", "provincia": "Rovigo", "values": [9303, 10162, 10291, 10817, 11948, 12623, 12797, 13570, 10733, 10127, 10166, 10172, 10431, 10536, 10004, 10378]}, {"comune": "Bagnolo di Po", "provincia": "Rovigo", "values": [2110, 2204, 2168, 2505, 2781, 3001, 3151, 3163, 2329, 1862, 1618, 1483, 1409, 1374, 1235, 1203]}, {"comune": "Bergantino", "provincia": "Rovigo", "values": [3295, 3506, 3226, 3560, 3792, 3592, 3752, 3863, 3270, 3059, 2891, 2839, 2627, 2626, 2411, 2340]}, {"comune": "Bosaro", "provincia": "Rovigo", "values": [1766, 1813, 1829, 1864, 1975, 2086, 2252, 2255, 1743, 1471, 1333, 1216, 1316, 1508, 1454, 1412]}, {"comune": "Calto", "provincia": "Rovigo", "values": [1739, 1794, 1733, 1875, 1871, 1843, 1847, 1749, 1302, 1073, 954, 872, 865, 819, 660, 699]}, {"comune": "Canaro", "provincia": "Rovigo", "values": [3263, 3403, 3177, 3750, 4385, 5023, 4988, 5173, 3785, 3131, 2908, 2782, 2838, 2853, 2604, 2569]}, {"comune": "Canda", "provincia": "Rovigo", "values": [1733, 1763, 1750, 1815, 1928, 1959, 2025, 2161, 1438, 1200, 1112, 1029, 936, 1007, 842, 812]}, {"comune": "Castelguglielmo", "provincia": "Rovigo", "values": [3052, 3293, 3032, 3315, 3523, 3826, 4085, 4106, 2690, 2212, 2075, 1965, 1763, 1646, 1527, 1510]}, {"comune": "Castelmassa", "provincia": "Rovigo", "values": [3807, 4144, 3764, 4154, 4403, 4285, 4423, 4616, 4898, 5015, 5169, 4724, 4312, 4291, 3970, 4026]}, {"comune": "Castelnovo Bariano", "provincia": "Rovigo", "values": [4935, 5239, 5026, 5728, 5822, 5863, 6052, 5908, 4759, 4055, 3642, 3205, 3052, 2931, 2615, 2588]}, {"comune": "Ceneselli", "provincia": "Rovigo", "values": [3054, 3405, 3203, 3625, 3777, 3708, 3711, 3907, 3166, 2642, 2385, 2097, 1871, 1813, 1559, 1573]}, {"comune": "Ceregnano", "provincia": "Rovigo", "values": [3792, 3976, 3743, 4384, 4845, 5591, 6017, 6461, 4730, 4133, 4142, 4085, 3942, 3691, 3469, 3377]}, {"comune": "Corbola", "provincia": "Rovigo", "values": [2485, 2789, 3374, 4278, 4838, 5197, 5401, 5327, 3612, 2908, 2696, 2630, 2645, 2514, 2170, 2246]}, {"comune": "Costa di Rovigo", "provincia": "Rovigo", "values": [2825, 2853, 2694, 3062, 3484, 3859, 4069, 4286, 3550, 3302, 3178, 3060, 2956, 2683, 2444, 2420]}, {"comune": "Crespino", "provincia": "Rovigo", "values": [4275, 4668, 4571, 4881, 5617, 5901, 5966, 6080, 3826, 3003, 2623, 2375, 2097, 1970, 1721, 1787]}, {"comune": "Ficarolo", "provincia": "Rovigo", "values": [3475, 3686, 3476, 4358, 4430, 4743, 4753, 4510, 3559, 3242, 3291, 2900, 2764, 2609, 2167, 2199]}, {"comune": "Fiesso Umbertiano", "provincia": "Rovigo", "values": [4111, 4245, 4007, 4885, 5199, 5764, 6166, 6344, 4799, 4194, 4150, 4135, 4177, 4275, 3840, 3882]}, {"comune": "Frassinelle Polesine", "provincia": "Rovigo", "values": [1523, 1587, 1593, 2148, 2341, 2725, 3146, 3183, 2298, 1960, 1844, 1751, 1626, 1529, 1328, 1326]}, {"comune": "Fratta Polesine", "provincia": "Rovigo", "values": [2956, 3247, 3000, 3465, 3905, 4522, 4990, 5051, 3719, 3294, 3029, 2960, 2746, 2782, 2493, 2445]}, {"comune": "Gaiba", "provincia": "Rovigo", "values": [1547, 1651, 1525, 1732, 1852, 1940, 1997, 1995, 1433, 1233, 1202, 1105, 1136, 1094, 952, 932]}, {"comune": "Gavello", "provincia": "Rovigo", "values": [2368, 2608, 2666, 3071, 3491, 3845, 3943, 4148, 2671, 2021, 1856, 1728, 1641, 1605, 1458, 1418]}, {"comune": "Giacciano con Baruchella", "provincia": "Rovigo", "values": [4467, 4448, 4136, 4647, 4857, 4655, 4693, 4493, 3332, 2879, 2665, 2462, 2255, 2182, 2039, 2083]}, {"comune": "Guarda Veneta", "provincia": "Rovigo", "values": [2116, 2050, 1944, 2094, 2293, 2495, 2519, 2637, 1925, 1560, 1342, 1224, 1153, 1185, 1099, 1100]}, {"comune": "Lendinara", "provincia": "Rovigo", "values": [9523, 9923, 10093, 11868, 13255, 14805, 15717, 17018, 14521, 13651, 13470, 12520, 12173, 12024, 11479, 11538]}, {"comune": "Loreo", "provincia": "Rovigo", "values": [3603, 4020, 4602, 5480, 6176, 6070, 6333, 6714, 4604, 3729, 3626, 3785, 3718, 3568, 3244, 3177]}, {"comune": "Lusia", "provincia": "Rovigo", "values": [2752, 2834, 2768, 3332, 3655, 3928, 4356, 4534, 3679, 3579, 3519, 3584, 3587, 3595, 3340, 3196]}, {"comune": "Melara", "provincia": "Rovigo", "values": [2997, 3167, 3318, 3633, 3710, 3595, 3560, 3305, 2718, 2430, 2272, 2055, 1927, 1870, 1677, 1704]}, {"comune": "Occhiobello", "provincia": "Rovigo", "values": [4200, 4331, 4540, 5352, 5843, 6204, 6076, 6020, 5465, 6783, 8735, 9190, 9979, 11351, 11971, 12022]}, {"comune": "Papozze", "provincia": "Rovigo", "values": [3361, 3565, 4263, 5032, 5549, 5507, 5555, 5172, 3404, 2427, 2072, 1873, 1743, 1645, 1350, 1408]}, {"comune": "Pettorazza Grimani", "provincia": "Rovigo", "values": [1842, 2113, 2254, 2323, 2740, 3388, 3542, 3968, 2494, 1850, 1763, 1668, 1719, 1669, 1464, 1392]}, {"comune": "Pincara", "provincia": "Rovigo", "values": [1994, 2192, 1912, 2240, 2497, 2824, 2935, 3121, 2061, 1545, 1485, 1357, 1277, 1262, 1121, 1062]}, {"comune": "Polesella", "provincia": "Rovigo", "values": [3628, 3835, 3507, 3797, 4116, 4610, 4778, 4834, 3792, 3486, 3528, 3709, 3951, 4079, 3611, 3676]}, {"comune": "Pontecchio Polesine", "provincia": "Rovigo", "values": [1546, 1586, 1750, 1873, 2138, 2199, 2385, 2633, 1811, 1684, 1518, 1372, 1516, 2078, 2189, 2222]}, {"comune": "Porto Tolle", "provincia": "Rovigo", "values": [5192, 6283, 7347, 10651, 10728, 14197, 16445, 20692, 13976, 10277, 10885, 11070, 10666, 10058, 9062, 8607]}, {"comune": "Porto Viro", "provincia": "Rovigo", "values": [8898, 10126, 11809, 14948, 16285, 21175, 23652, 21691, 15152, 13105, 14217, 14111, 14399, 14656, 13763, 13675]}, {"comune": "Rosolina", "provincia": "Rovigo", "values": [2152, 2346, 2651, 3296, 3809, 4638, 5135, 5104, 4320, 4912, 5537, 5675, 6144, 6481, 6225, 6043]}, {"comune": "Rovigo", "provincia": "Rovigo", "values": [23633, 24628, 23821, 27123, 30953, 36824, 39954, 45862, 45649, 49848, 52218, 52472, 50289, 50164, 49976, 49994]}, {"comune": "Salara", "provincia": "Rovigo", "values": [2004, 2134, 2027, 2376, 2513, 2470, 2311, 2356, 1759, 1416, 1295, 1321, 1265, 1214, 1038, 1027]}, {"comune": "San Bellino", "provincia": "Rovigo", "values": [1680, 1807, 1653, 1795, 1900, 2102, 2278, 2348, 1722, 1423, 1319, 1243, 1197, 1156, 1009, 1075]}, {"comune": "San Martino di Venezze", "provincia": "Rovigo", "values": [3597, 3990, 3797, 4376, 4753, 5668, 6185, 6635, 4734, 4356, 4229, 4011, 3877, 4035, 3757, 3806]}, {"comune": "Stienta", "provincia": "Rovigo", "values": [2911, 3163, 3184, 3644, 4001, 3938, 4049, 4142, 3349, 3055, 3042, 3004, 3010, 3329, 3111, 3019]}, {"comune": "Taglio di Po", "provincia": "Rovigo", "values": [3620, 4481, 5550, 8090, 9653, 11112, 12178, 13086, 8636, 7789, 8441, 8538, 8284, 8495, 7874, 7836]}, {"comune": "Trecenta", "provincia": "Rovigo", "values": [5449, 5470, 5262, 5922, 6335, 6386, 6584, 6644, 4960, 4217, 3790, 3458, 3146, 2956, 2533, 2605]}, {"comune": "Villadose", "provincia": "Rovigo", "values": [3377, 3710, 3856, 4211, 4841, 5469, 5923, 6504, 5200, 4916, 5094, 5269, 5248, 5188, 4765, 4640]}, {"comune": "Villamarzana", "provincia": "Rovigo", "values": [1556, 1717, 1678, 1905, 2054, 2278, 2430, 2529, 1733, 1436, 1279, 1197, 1213, 1202, 1142, 1112]}, {"comune": "Villanova del Ghebbo", "provincia": "Rovigo", "values": [1656, 1759, 1793, 2168, 2402, 2734, 2855, 2893, 2160, 2052, 2141, 2245, 2196, 2164, 2042, 1933]}, {"comune": "Villanova Marchesana", "provincia": "Rovigo", "values": [1805, 2014, 2082, 2662, 2940, 3221, 3246, 3573, 2314, 1146, 1255, 1105, 1038, 1000, 857, 876]}, {"comune": "Altivole", "provincia": "Treviso", "values": [2896, 3240, 3545, 4344, 4561, 4635, 4741, 4867, 4377, 4302, 5063, 5456, 6122, 6720, 7015, 7088]}, {"comune": "Arcade", "provincia": "Treviso", "values": [1127, 1277, 1348, 1830, 1959, 2078, 2012, 2054, 2144, 2440, 2806, 3119, 3440, 4366, 4504, 4476]}, {"comune": "Asolo", "provincia": "Treviso", "values": [5451, 5813, 5832, 6564, 6741, 6413, 6710, 7078, 6253, 6161, 6295, 6651, 7605, 8952, 8960, 8917]}, {"comune": "Borso del Grappa", "provincia": "Treviso", "values": [3079, 3324, 3703, 4213, 4591, 4436, 3848, 3764, 3440, 3512, 3812, 3932, 4935, 5913, 5878, 5971]}, {"comune": "Breda di Piave", "provincia": "Treviso", "values": [3352, 3604, 3924, 5124, 5565, 5685, 5608, 6060, 5810, 5588, 5545, 5516, 6348, 7750, 7659, 7642]}, {"comune": "Caerano di San Marco", "provincia": "Treviso", "values": [1822, 2015, 2487, 3055, 3272, 3439, 3348, 4136, 4237, 5125, 6045, 6641, 7027, 7941, 7849, 7819]}, {"comune": "Cappella Maggiore", "provincia": "Treviso", "values": [1890, 1916, 2116, 2689, 2957, 3154, 2955, 3211, 3501, 3740, 4046, 4171, 4412, 4677, 4657, 4662]}, {"comune": "Carbonera", "provincia": "Treviso", "values": [2684, 2723, 3318, 4117, 4792, 5299, 5454, 5840, 6157, 6529, 8429, 8429, 9804, 11135, 11277, 11239]}, {"comune": "Casale sul Sile", "provincia": "Treviso", "values": [3619, 3964, 4190, 4965, 5470, 5606, 5464, 5864, 5570, 5987, 6920, 7375, 9461, 12722, 13160, 13067]}, {"comune": "Casier", "provincia": "Treviso", "values": [1794, 1953, 2222, 2735, 2969, 2876, 2908, 3180, 3376, 4508, 5689, 6795, 8935, 11018, 11356, 11425]}, {"comune": "Castelcucco", "provincia": "Treviso", "values": [1528, 1588, 1626, 1812, 1804, 1594, 1581, 1600, 1350, 1304, 1648, 1693, 1871, 2189, 2299, 2317]}, {"comune": "Castelfranco Veneto", "provincia": "Treviso", "values": [10719, 11512, 12440, 14825, 16206, 17191, 17349, 20073, 21099, 26283, 28511, 29470, 31486, 32894, 33056, 33241]}, {"comune": "Castello di Godego", "provincia": "Treviso", "values": [3191, 3463, 3578, 4084, 4737, 4565, 4379, 4876, 4308, 4510, 5569, 6023, 6347, 7013, 7112, 6898]}, {"comune": "Cavaso del Tomba", "provincia": "Treviso", "values": [3163, 3148, 3510, 3900, 3272, 3171, 3032, 3040, 2622, 2603, 2543, 2390, 2675, 2996, 2872, 2941]}, {"comune": "Cessalto", "provincia": "Treviso", "values": [3792, 4187, 4063, 4621, 4976, 5748, 5808, 5718, 4112, 3262, 3110, 3132, 3134, 3834, 3776, 3835]}, {"comune": "Chiarano", "provincia": "Treviso", "values": [3108, 3215, 3223, 3831, 4106, 4684, 4578, 4629, 3641, 2901, 2938, 3028, 3114, 3695, 3665, 3337]}, {"comune": "Cimadolmo", "provincia": "Treviso", "values": [1669, 1866, 2120, 2661, 2945, 3159, 3090, 3113, 3126, 2960, 3031, 3108, 3327, 3413, 3343, 3364]}, {"comune": "Cison di Valmarino", "provincia": "Treviso", "values": [4066, 4224, 3650, 4388, 4339, 4073, 3422, 3287, 2940, 2471, 2365, 2401, 2553, 2711, 2540, 2411]}, {"comune": "Codognè", "provincia": "Treviso", "values": [3520, 3493, 3477, 4371, 5167, 5189, 4924, 4877, 4479, 4596, 4779, 4846, 5068, 5311, 5225, 5246]}, {"comune": "Colle Umberto", "provincia": "Treviso", "values": [2375, 2510, 2781, 3270, 3677, 3482, 3426, 3589, 3390, 3729, 4046, 4369, 4572, 5177, 5071, 4972]}, {"comune": "Conegliano", "provincia": "Treviso", "values": [7872, 8209, 10252, 13007, 15072, 17232, 15434, 18353, 22892, 31531, 36142, 35656, 35100, 34428, 34274, 34675]}, {"comune": "Cordignano", "provincia": "Treviso", "values": [4492, 4335, 4538, 5401, 6090, 5888, 5922, 6007, 5586, 5666, 5888, 5803, 6374, 7096, 6900, 6784]}, {"comune": "Cornuda", "provincia": "Treviso", "values": [1496, 1620, 2333, 3005, 3184, 3020, 2971, 3642, 4407, 5043, 5041, 5313, 5730, 6217, 6286, 6017]}, {"comune": "Crocetta del Montello", "provincia": "Treviso", "values": [2852, 3089, 4160, 5979, 6151, 6134, 5798, 5935, 5573, 5662, 5748, 5662, 5709, 6029, 6057, 6074]}, {"comune": "Farra di Soligo", "provincia": "Treviso", "values": [4150, 4502, 5281, 6167, 6514, 6903, 6540, 6777, 6329, 6542, 7080, 7495, 7892, 8956, 8508, 8497]}, {"comune": "Follina", "provincia": "Treviso", "values": [3481, 3438, 3155, 3674, 4001, 3471, 3161, 3281, 3089, 3259, 3413, 3431, 3646, 3939, 3634, 3614]}, {"comune": "Fontanelle", "provincia": "Treviso", "values": [3552, 3721, 4135, 5191, 6018, 6258, 6206, 6176, 4773, 4521, 4852, 5080, 5471, 5804, 5657, 5559]}, {"comune": "Fonte", "provincia": "Treviso", "values": [2667, 2894, 2889, 3363, 3739, 3428, 3370, 3619, 3294, 3797, 4435, 4683, 5479, 6019, 6066, 6063]}, {"comune": "Fregona", "provincia": "Treviso", "values": [3049, 3054, 3393, 3941, 4443, 4186, 3763, 3742, 3538, 3077, 2910, 2936, 2927, 3169, 2815, 2738]}, {"comune": "Gaiarine", "provincia": "Treviso", "values": [3879, 4112, 4225, 5088, 5833, 6397, 5963, 6213, 5880, 5977, 6225, 6276, 6161, 6136, 6025, 5826]}, {"comune": "Giavera del Montello", "provincia": "Treviso", "values": [2242, 2541, 2853, 3627, 4047, 3811, 3595, 3684, 3391, 3384, 3668, 3806, 4318, 5144, 5165, 5110]}, {"comune": "Godega di Sant'Urbano", "provincia": "Treviso", "values": [3061, 3153, 3233, 4379, 4820, 5218, 5113, 5054, 5347, 5606, 5800, 5862, 5954, 6112, 5942, 6014]}, {"comune": "Gorgo al Monticano", "provincia": "Treviso", "values": [3423, 3303, 3406, 4303, 4744, 5075, 4981, 4968, 3673, 3264, 3594, 3753, 3977, 4182, 4013, 3976]}, {"comune": "Istrana", "provincia": "Treviso", "values": [2870, 3202, 3665, 4352, 4955, 5033, 5036, 5346, 5373, 5701, 6315, 6916, 7763, 9041, 9088, 9088]}, {"comune": "Loria", "provincia": "Treviso", "values": [3750, 4080, 4536, 5390, 6145, 6468, 6208, 6971, 6103, 6107, 6645, 6987, 7764, 9097, 9313, 9221]}, {"comune": "Mansuè", "provincia": "Treviso", "values": [3211, 3254, 3394, 4294, 4797, 4880, 4838, 4798, 3578, 3304, 3643, 3941, 4132, 4974, 4967, 4850]}, {"comune": "Mareno di Piave", "provincia": "Treviso", "values": [3140, 3494, 3826, 4881, 5430, 5810, 5749, 5872, 5929, 6313, 6835, 7255, 7870, 9667, 9548, 9353]}, {"comune": "Maser", "provincia": "Treviso", "values": [2936, 3199, 3402, 4013, 4374, 4104, 4081, 4637, 4239, 4377, 4616, 4730, 4846, 4962, 5125, 5094]}, {"comune": "Maserada sul Piave", "provincia": "Treviso", "values": [2453, 2620, 2848, 3584, 4110, 4577, 4617, 5235, 5269, 5682, 6077, 6328, 7575, 9293, 9225, 9149]}, {"comune": "Meduna di Livenza", "provincia": "Treviso", "values": [1778, 1987, 2097, 2609, 3038, 3141, 3070, 2928, 2611, 2439, 2487, 2425, 2702, 2947, 2947, 2972]}, {"comune": "Miane", "provincia": "Treviso", "values": [3596, 3477, 3978, 4625, 4482, 4207, 3738, 3943, 3564, 3231, 3309, 3322, 3416, 3436, 3144, 2978]}, {"comune": "Mogliano Veneto", "provincia": "Treviso", "values": [5703, 6362, 7643, 9635, 11366, 12117, 12669, 15852, 17410, 20636, 23575, 25420, 26322, 27608, 27626, 28145]}, {"comune": "Monastier di Treviso", "provincia": "Treviso", "values": [2755, 2902, 2976, 3664, 4027, 4194, 4036, 4133, 3291, 3015, 3123, 3424, 3554, 4087, 4429, 4432]}, {"comune": "Monfumo", "provincia": "Treviso", "values": [1311, 1356, 1382, 1769, 1900, 1741, 1751, 1711, 1403, 1200, 1329, 1381, 1428, 1442, 1315, 1300]}, {"comune": "Montebelluna", "provincia": "Treviso", "values": [8091, 9008, 10284, 12364, 15016, 15149, 15064, 16977, 18909, 22313, 24585, 25186, 27539, 30765, 31062, 31144]}, {"comune": "Morgano", "provincia": "Treviso", "values": [1954, 2076, 2335, 2834, 3124, 3220, 3109, 3129, 2929, 2854, 3128, 3449, 3754, 4362, 4428, 4513]}, {"comune": "Moriago della Battaglia", "provincia": "Treviso", "values": [1922, 2133, 2098, 2551, 2571, 2617, 2227, 2301, 2044, 2023, 2295, 2412, 2627, 2785, 2783, 2857]}, {"comune": "Motta di Livenza", "provincia": "Treviso", "values": [5811, 5998, 6023, 7347, 8224, 8739, 8470, 8692, 7655, 7221, 7791, 8596, 9657, 10681, 10661, 10522]}, {"comune": "Nervesa della Battaglia", "provincia": "Treviso", "values": [3342, 3762, 4400, 5729, 6277, 7239, 6889, 6967, 6231, 6610, 6543, 6401, 6653, 6854, 6543, 6595]}, {"comune": "Oderzo", "provincia": "Treviso", "values": [8027, 8199, 8643, 10585, 12256, 12734, 12524, 12873, 12163, 14423, 16353, 16632, 17316, 20068, 20042, 20348]}, {"comune": "Ormelle", "provincia": "Treviso", "values": [2524, 2674, 3083, 4536, 4133, 4470, 4248, 3937, 3550, 3315, 3451, 3619, 4087, 4464, 4515, 4480]}, {"comune": "Orsago", "provincia": "Treviso", "values": [1642, 1706, 1627, 2042, 2248, 2483, 2554, 2649, 2946, 3384, 3516, 3556, 3598, 3917, 3850, 3720]}, {"comune": "Paese", "provincia": "Treviso", "values": [4304, 4862, 5731, 6970, 7879, 7854, 7916, 9268, 9543, 11016, 13825, 15845, 18407, 21432, 22012, 22184]}, {"comune": "Pederobba", "provincia": "Treviso", "values": [4743, 4647, 5096, 5959, 6463, 6212, 5764, 5983, 5568, 5539, 5934, 6517, 7061, 7573, 7280, 7257]}, {"comune": "Pieve del Grappa", "provincia": "Treviso", "values": [4984, 5282, 5467, 5676, 6692, 5594, 5713, 5440, 5090, 5392, 5392, 5156, 6330, 6882, 6592, 6576]}, {"comune": "Pieve di Soligo", "provincia": "Treviso", "values": [3760, 3941, 4199, 5021, 5779, 5856, 5714, 5978, 6366, 8173, 9140, 9393, 10673, 12057, 11680, 11452]}, {"comune": "Ponte di Piave", "provincia": "Treviso", "values": [4057, 4470, 4888, 6148, 6505, 7182, 7077, 7131, 5888, 5483, 5830, 6233, 7128, 8312, 8286, 8331]}, {"comune": "Ponzano Veneto", "provincia": "Treviso", "values": [2169, 2406, 2618, 3259, 3551, 3928, 4018, 1301, 4503, 5528, 6978, 7542, 9783, 12194, 12981, 13027]}, {"comune": "Portobuffolè", "provincia": "Treviso", "values": [778, 799, 715, 890, 928, 838, 798, 892, 777, 708, 698, 699, 739, 790, 736, 747]}, {"comune": "Possagno", "provincia": "Treviso", "values": [1754, 1835, 2107, 2384, 2448, 2174, 2019, 1991, 1935, 1895, 1828, 1828, 2029, 2195, 2224, 2299]}, {"comune": "Povegliano", "provincia": "Treviso", "values": [1909, 1911, 2094, 2606, 2816, 2973, 2903, 3070, 2924, 3073, 3350, 3514, 4109, 5052, 5104, 5143]}, {"comune": "Preganziol", "provincia": "Treviso", "values": [2882, 3191, 3366, 4386, 5146, 5680, 5544, 6166, 7235, 8785, 11189, 13141, 14706, 16772, 16799, 16738]}, {"comune": "Quinto di Treviso", "provincia": "Treviso", "values": [2702, 3003, 3197, 3909, 4654, 4540, 4613, 5308, 5333, 5996, 8498, 9054, 9288, 9745, 9945, 10093]}, {"comune": "Refrontolo", "provincia": "Treviso", "values": [1310, 1290, 1469, 1882, 2177, 2271, 2163, 2072, 1686, 1582, 1662, 1708, 1805, 1824, 1728, 1697]}, {"comune": "Resana", "provincia": "Treviso", "values": [4005, 4116, 4258, 5457, 6114, 5948, 5882, 5974, 5345, 5345, 5943, 6410, 7491, 9290, 9380, 9340]}, {"comune": "Revine Lago", "provincia": "Treviso", "values": [2381, 2369, 2833, 3037, 3425, 2803, 2239, 2246, 2259, 2080, 2033, 2016, 2119, 2241, 2103, 2099]}, {"comune": "Riese Pio X", "provincia": "Treviso", "values": [3891, 4245, 4872, 5822, 6383, 6353, 6424, 6690, 6004, 6615, 7272, 8342, 9627, 10858, 10901, 10921]}, {"comune": "Roncade", "provincia": "Treviso", "values": [6359, 6960, 7088, 9184, 10823, 11206, 10875, 11778, 10144, 10625, 11253, 11518, 11911, 14037, 14680, 14592]}, {"comune": "Salgareda", "provincia": "Treviso", "values": [3552, 3687, 4054, 4925, 5180, 6205, 6165, 6137, 4597, 4204, 4524, 4634, 5574, 6599, 6567, 6523]}, {"comune": "San Biagio di Callalta", "provincia": "Treviso", "values": [6096, 6358, 6696, 8408, 9189, 9939, 9418, 10294, 8971, 9176, 10504, 10780, 11439, 13039, 12761, 12631]}, {"comune": "San Fior", "provincia": "Treviso", "values": [2676, 2845, 3329, 3860, 4347, 4440, 4400, 4581, 4855, 5121, 5475, 5467, 6153, 6813, 6843, 6843]}, {"comune": "San Pietro di Feletto", "provincia": "Treviso", "values": [2470, 2548, 2852, 3570, 3830, 4012, 4038, 4098, 3844, 4303, 4254, 4278, 4890, 5355, 5141, 5132]}, {"comune": "San Polo di Piave", "provincia": "Treviso", "values": [2761, 3008, 3116, 4056, 4423, 4699, 4670, 4701, 4044, 3766, 3812, 4053, 4536, 4929, 4914, 4795]}, {"comune": "San Vendemiano", "provincia": "Treviso", "values": [2699, 2828, 3068, 4219, 4713, 4876, 4828, 5033, 5778, 7421, 7660, 8140, 8776, 10080, 9884, 9680]}, {"comune": "San Zenone degli Ezzelini", "provincia": "Treviso", "values": [2986, 3396, 3779, 4389, 4928, 4765, 4500, 4675, 4072, 4151, 4571, 5386, 6506, 7391, 7282, 7318]}, {"comune": "Santa Lucia di Piave", "provincia": "Treviso", "values": [2475, 2529, 2562, 3182, 3678, 4024, 3962, 4175, 4382, 5721, 6294, 6530, 7226, 9081, 9127, 9056]}, {"comune": "Sarmede", "provincia": "Treviso", "values": [2488, 2517, 2949, 3460, 3811, 3866, 3563, 3921, 3394, 3106, 3018, 2886, 3004, 3174, 2951, 2960]}, {"comune": "Segusino", "provincia": "Treviso", "values": [1823, 1985, 1961, 2256, 2273, 2236, 1930, 1966, 1834, 1942, 2022, 2019, 1980, 1941, 1823, 1804]}, {"comune": "Sernaglia della Battaglia", "provincia": "Treviso", "values": [2452, 2721, 3073, 3866, 4123, 4585, 4164, 4663, 4743, 5201, 5537, 5542, 5799, 6325, 6086, 6145]}, {"comune": "Silea", "provincia": "Treviso", "values": [2489, 2865, 3314, 4016, 4522, 4882, 4720, 5275, 5405, 6612, 7780, 8671, 9114, 9923, 10219, 10459]}, {"comune": "Spresiano", "provincia": "Treviso", "values": [3716, 3958, 4699, 6426, 6365, 6086, 6119, 6814, 7011, 7914, 8652, 8658, 9251, 11659, 12298, 12400]}, {"comune": "Susegana", "provincia": "Treviso", "values": [3735, 3909, 4602, 5445, 6156, 6929, 7105, 6971, 7120, 8227, 9020, 9660, 10754, 11702, 11740, 11698]}, {"comune": "Tarzo", "provincia": "Treviso", "values": [3816, 3758, 3871, 4658, 5159, 5102, 4798, 4768, 4253, 4276, 4321, 4382, 4537, 4583, 4226, 4119]}, {"comune": "Trevignano", "provincia": "Treviso", "values": [3206, 3525, 4081, 5181, 5456, 5418, 5404, 5928, 5438, 5912, 7420, 8254, 9074, 10565, 10722, 10676]}, {"comune": "Treviso", "provincia": "Treviso", "values": [29074, 31261, 33848, 41552, 47404, 52036, 53886, 63437, 75017, 90446, 87696, 83598, 80144, 81014, 84452, 86113]}, {"comune": "Valdobbiadene", "provincia": "Treviso", "values": [7931, 8488, 9017, 9976, 9624, 10443, 10425, 10954, 10739, 11021, 11097, 10748, 10624, 10690, 10002, 9872]}, {"comune": "Vazzola", "provincia": "Treviso", "values": [3739, 3820, 4279, 5391, 5902, 6268, 6161, 6205, 5738, 5630, 5629, 5636, 6405, 7009, 6746, 6674]}, {"comune": "Vedelago", "provincia": "Treviso", "values": [6129, 6834, 7971, 9656, 11038, 10829, 10969, 11407, 10189, 10663, 12084, 13011, 13826, 16434, 16554, 16558]}, {"comune": "Vidor", "provincia": "Treviso", "values": [1793, 1775, 1957, 2330, 2487, 2736, 2665, 2688, 2590, 2742, 2954, 2961, 3405, 3769, 3690, 3559]}, {"comune": "Villorba", "provincia": "Treviso", "values": [3901, 4379, 4946, 6491, 7196, 7833, 8341, 10021, 10737, 12502, 14573, 15463, 16921, 17883, 17603, 17563]}, {"comune": "Vittorio Veneto", "provincia": "Treviso", "values": [16268, 16681, 19113, 21946, 24157, 24673, 23475, 24979, 27399, 30891, 30193, 29231, 29184, 28656, 27310, 27242]}, {"comune": "Volpago del Montello", "provincia": "Treviso", "values": [4951, 5584, 6230, 7288, 8003, 7751, 7749, 8089, 7625, 7888, 8375, 8548, 9084, 10045, 10062, 9989]}, {"comune": "Zenson di Piave", "provincia": "Treviso", "values": [1666, 1714, 1753, 2076, 2282, 2430, 2453, 2427, 1884, 1626, 1572, 1568, 1694, 1783, 1741, 1765]}, {"comune": "Zero Branco", "provincia": "Treviso", "values": [3813, 4277, 4571, 5609, 6483, 6702, 6664, 7048, 6456, 6619, 7116, 7725, 8581, 10986, 11488, 11695]}, {"comune": "Annone Veneto", "provincia": "Venezia", "values": [2437, 2604, 2866, 3716, 4095, 4605, 4711, 4676, 3862, 3379, 3314, 3238, 3490, 3976, 3787, 3917]}, {"comune": "Campagna Lupia", "provincia": "Venezia", "values": [1343, 1526, 1989, 2597, 3179, 3892, 4109, 4937, 4638, 4874, 5577, 6065, 6288, 6936, 12924, 7116]}, {"comune": "Campolongo Maggiore", "provincia": "Venezia", "values": [3644, 3857, 4863, 5602, 6608, 7545, 7475, 8300, 7688, 8041, 8769, 8952, 9196, 10342, 10713, 10698]}, {"comune": "Camponogara", "provincia": "Venezia", "values": [2610, 3069, 3908, 4915, 5823, 6149, 6307, 7190, 7363, 8030, 9156, 9756, 10905, 12920, 12924, 12979]}, {"comune": "Caorle", "provincia": "Venezia", "values": [2371, 2793, 3218, 4390, 5320, 8321, 10077, 13263, 11432, 10962, 11498, 11136, 11342, 11793, 11128, 10978]}, {"comune": "Cavallino-Treporti", "provincia": "Venezia", "values": [1688, 1953, null, 3263, null, null, 5994, null, 8116, 8844, 10065, 10890, 11824, 13162, 13299, 13105]}, {"comune": "Cavarzere", "provincia": "Venezia", "values": [15038, 17280, 16388, 18709, 21224, 22985, 25199, 28781, 20277, 17911, 17753, 16806, 15504, 14816, 12753, 12730]}, {"comune": "Ceggia", "provincia": "Venezia", "values": [2089, 2292, 2614, 3128, 3568, 4360, 4746, 5352, 5014, 4962, 5077, 5024, 5096, 6213, 6110, 6250]}, {"comune": "Chioggia", "provincia": "Venezia", "values": [28051, 29236, 31218, 35052, 36427, 40252, 42569, 49528, 47151, 49885, 53470, 53179, 51779, 49735, 47827, 46951]}, {"comune": "Cinto Caomaggiore", "provincia": "Venezia", "values": [1755, 1843, 2121, 2940, 3393, 3590, 3323, 3310, 3028, 2939, 3139, 3137, 3168, 3285, 3128, 3172]}, {"comune": "Cona", "provincia": "Venezia", "values": [3590, 3929, 4135, 4819, 5369, 5821, 6509, 7350, 4574, 3455, 3489, 3358, 3253, 3175, 2758, 2767]}, {"comune": "Concordia Sagittaria", "provincia": "Venezia", "values": [2657, 2922, 3074, 4201, 5017, 5588, 6368, 8298, 8451, 9216, 10361, 10558, 10492, 10640, 10192, 10212]}, {"comune": "Dolo", "provincia": "Venezia", "values": [6351, 6475, 6874, 7685, 8332, 8686, 8896, 11007, 11409, 12287, 13480, 13723, 14442, 14982, 14929, 14993]}, {"comune": "Eraclea", "provincia": "Venezia", "values": [1966, 2234, 2378, 3264, 3914, 8451, 10222, 12839, 10459, 10748, 11448, 11841, 12460, 12689, 12001, 11820]}, {"comune": "Fiesso d'Artico", "provincia": "Venezia", "values": [1688, 1851, 2141, 2484, 2811, 3090, 3266, 3883, 4328, 5242, 5792, 5855, 5779, 7728, 8433, 8702]}, {"comune": "Fossalta di Piave", "provincia": "Venezia", "values": [2432, 2497, 2625, 3130, 3432, 3941, 3827, 3938, 3641, 3689, 3735, 3832, 4022, 4214, 4152, 4251]}, {"comune": "Fossalta di Portogruaro", "provincia": "Venezia", "values": [2821, 2985, 3398, 4471, 4921, 5003, 5193, 5988, 5417, 5103, 5639, 5681, 5843, 6075, 5709, 5747]}, {"comune": "Fossò", "provincia": "Venezia", "values": [1632, 1921, 2309, 2923, 3379, 3553, 3786, 4258, 4280, 4674, 5259, 5331, 5922, 6786, 7090, 7118]}, {"comune": "Gruaro", "provincia": "Venezia", "values": [1992, 2090, 2220, 2852, 3118, 3267, 3126, 3117, 2824, 2671, 2757, 2705, 2690, 2802, 2730, 2700]}, {"comune": "Jesolo", "provincia": "Venezia", "values": [2821, 3455, 3951, 6010, 7305, 10438, 12006, 14623, 16431, 20984, 22039, 22151, 22698, 24479, 26503, 27120]}, {"comune": "Marcon", "provincia": "Venezia", "values": [1152, 1284, 1625, 2150, 2526, 3046, 3337, 4315, 4026, 4905, 8122, 10551, 12199, 16215, 17544, 17664]}, {"comune": "Martellago", "provincia": "Venezia", "values": [3130, 3302, 3701, 4609, 5263, 6047, 6428, 8011, 8707, 11949, 16616, 18587, 19476, 21171, 21040, 21184]}, {"comune": "Meolo", "provincia": "Venezia", "values": [3112, 3311, 3597, 4263, 4648, 5069, 5219, 5508, 4607, 4760, 5121, 5241, 6054, 6465, 6200, 6155]}, {"comune": "Mira", "provincia": "Venezia", "values": [8603, 9189, 11144, 14248, 17014, 20011, 21130, 25716, 27670, 32119, 35834, 36432, 35355, 38552, 37508, 37465]}, {"comune": "Mirano", "provincia": "Venezia", "values": [7367, 8015, 9384, 11359, 12962, 14850, 15354, 17872, 18841, 22275, 23994, 25792, 26206, 26456, 27100, 27114]}, {"comune": "Musile di Piave", "provincia": "Venezia", "values": [2569, 2941, 3297, 4501, 5579, 6933, 7772, 8135, 7152, 8654, 9497, 9740, 10249, 11518, 11328, 11407]}, {"comune": "Noale", "provincia": "Venezia", "values": [4295, 4721, 5036, 6205, 6736, 7009, 7303, 8635, 8941, 10639, 12065, 13363, 14790, 15708, 16077, 16225]}, {"comune": "Noventa di Piave", "provincia": "Venezia", "values": [3599, 3735, 4081, 5069, 5260, 6062, 6208, 6330, 5478, 5039, 5346, 5733, 5952, 6843, 6984, 7015]}, {"comune": "Pianiga", "provincia": "Venezia", "values": [3185, 3431, 4118, 5108, 5693, 6152, 6118, 6411, 6608, 7805, 8605, 8895, 9168, 11968, 12142, 12305]}, {"comune": "Portogruaro", "provincia": "Venezia", "values": [9182, 9386, 9636, 12374, 14147, 17228, 18425, 21945, 20840, 22814, 24440, 24760, 24571, 25140, 24343, 24301]}, {"comune": "Pramaggiore", "provincia": "Venezia", "values": [1995, 2286, 2486, 3312, 4053, 4284, 3977, 4007, 3045, 2787, 3298, 3467, 3985, 4640, 4723, 4721]}, {"comune": "Quarto d'Altino", "provincia": "Venezia", "values": [1669, 1627, 1851, 2229, 2486, 2998, 3549, 4120, 3804, 4361, 5463, 6234, 7228, 8199, 8007, 8012]}, {"comune": "Salzano", "provincia": "Venezia", "values": [3139, 3341, 3632, 4512, 4928, 5557, 5622, 6313, 6629, 7541, 9256, 10997, 11593, 12678, 12837, 12768]}, {"comune": "San Donà di Piave", "provincia": "Venezia", "values": [8010, 8736, 10121, 13468, 15508, 20961, 22849, 25536, 24614, 29069, 32017, 33446, 35417, 40646, 41579, 42261]}, {"comune": "San Michele al Tagliamento", "provincia": "Venezia", "values": [4976, 5371, 6217, 7486, 8456, 9507, 10762, 12580, 11093, 11035, 11961, 11916, 11441, 12028, 11542, 11329]}, {"comune": "Santa Maria di Sala", "provincia": "Venezia", "values": [3815, 4309, 5178, 6369, 7204, 7467, 7592, 8583, 8252, 8558, 9894, 11072, 13685, 17295, 17405, 17488]}, {"comune": "San Stino di Livenza", "provincia": "Venezia", "values": [4278, 4397, 4801, 6330, 7206, 9241, 10982, 12718, 10565, 10442, 11166, 11476, 11763, 13042, 12660, 12726]}, {"comune": "Scorzè", "provincia": "Venezia", "values": [4589, 4988, 5630, 6959, 7917, 8614, 8905, 10163, 10001, 11354, 13947, 15657, 17295, 18904, 18961, 18996]}, {"comune": "Spinea", "provincia": "Venezia", "values": [2124, 2356, 2799, 3283, 3769, 4468, 4694, 6092, 10565, 20635, 24514, 24905, 24517, 26862, 27694, 27933]}, {"comune": "Stra", "provincia": "Venezia", "values": [2132, 2417, 2713, 3250, 3808, 3951, 3945, 4793, 5038, 5540, 6253, 6710, 7031, 7566, 7526, 7506]}, {"comune": "Teglio Veneto", "provincia": "Venezia", "values": [1327, 1455, 1682, 1939, 2279, 2378, 2380, 2528, 2272, 2050, 2043, 1964, 1979, 2325, 2250, 2224]}, {"comune": "Torre di Mosto", "provincia": "Venezia", "values": [1784, 2065, 2122, 2763, 3286, 4982, 5841, 6726, 4751, 3779, 3739, 3783, 4302, 4739, 4785, 4753]}, {"comune": "Venezia", "provincia": "Venezia", "values": [164965, 165802, 189368, 208463, 223373, 250327, 264027, 316891, 347347, 363062, 346146, 309442, 271073, 261362, 250588, 249385]}, {"comune": "Vigonovo", "provincia": "Venezia", "values": [2628, 2959, 3324, 4031, 4693, 4977, 5003, 5884, 6060, 7027, 7705, 7581, 8064, 9892, 9896, 9814]}, {"comune": "Affi", "provincia": "Verona", "values": [772, 895, 970, 1090, 1181, 1164, 1121, 1172, 1120, 1091, 1158, 1454, 1942, 2297, 2387, 2504]}, {"comune": "Albaredo d'Adige", "provincia": "Verona", "values": [4282, 4691, 4351, 5119, 5480, 5753, 5885, 6418, 5326, 5279, 5121, 4952, 5032, 5232, 5272, 5298]}, {"comune": "Angiari", "provincia": "Verona", "values": [2140, 2174, 1932, 2138, 2284, 2317, 2400, 2508, 1982, 1835, 1798, 1728, 1844, 2164, 2448, 2544]}, {"comune": "Arcole", "provincia": "Verona", "values": [2600, 2928, 3053, 3576, 3953, 4286, 4223, 4436, 3824, 3773, 4423, 4633, 5274, 6144, 6329, 6419]}, {"comune": "Badia Calavena", "provincia": "Verona", "values": [2302, 2563, 3174, 3299, 3525, 3396, 3221, 3415, 2473, 1891, 2001, 2186, 2373, 2661, 2581, 2707]}, {"comune": "Bardolino", "provincia": "Verona", "values": [2428, 2565, 3079, 3535, 3820, 3887, 3829, 4195, 4330, 5306, 5814, 6025, 6329, 6714, 7003, 6816]}, {"comune": "Belfiore", "provincia": "Verona", "values": [1448, 1667, 1552, 1681, 2717, 3169, 2472, 2923, 2903, 2663, 2662, 2623, 2645, 3008, 3271, 3408]}, {"comune": "Bevilacqua", "provincia": "Verona", "values": [1482, 1624, 1745, 1973, 2097, 2121, 2141, 2171, 1751, 1608, 1563, 1583, 1691, 1787, 1771, 1817]}, {"comune": "Bonavigo", "provincia": "Verona", "values": [2034, 2282, 2039, 2507, 2508, 2536, 2678, 2883, 2322, 2007, 2020, 1967, 1881, 2024, 2010, 1990]}, {"comune": "Boschi Sant'Anna", "provincia": "Verona", "values": [1327, 1448, 1360, 1489, 1688, 1706, 1777, 1670, 1387, 1272, 1240, 1284, 1347, 1454, 1361, 1385]}, {"comune": "Bosco Chiesanuova", "provincia": "Verona", "values": [2982, 3087, 3918, 4295, 4372, 4146, 4088, 3891, 3334, 3050, 3028, 3033, 3203, 3546, 3560, 3593]}, {"comune": "Bovolone", "provincia": "Verona", "values": [4199, 4377, 4437, 5083, 5345, 6234, 6520, 7601, 9085, 11467, 12755, 12953, 13426, 15874, 16031, 16392]}, {"comune": "Brentino Belluno", "provincia": "Verona", "values": [1235, 1207, 1272, 1409, 1584, 1562, 1573, 1635, 1421, 1232, 1207, 1239, 1301, 1406, 1350, 1368]}, {"comune": "Brenzone sul Garda", "provincia": "Verona", "values": [1970, 2052, 2429, 2596, 2799, 2504, 2612, 2339, 2343, 2396, 2373, 2284, 2358, 2496, 2456, 2436]}, {"comune": "Bussolengo", "provincia": "Verona", "values": [3063, 3243, 3543, 4021, 4466, 5003, 5370, 6425, 7760, 10730, 13528, 14453, 16986, 19483, 20663, 21037]}, {"comune": "Buttapietra", "provincia": "Verona", "values": [1322, 1451, 1471, 1742, 2159, 2612, 2734, 3447, 3345, 3389, 4018, 4445, 5801, 6867, 6987, 7031]}, {"comune": "Caldiero", "provincia": "Verona", "values": [2299, 2494, 2600, 2729, 3349, 3169, 3183, 3240, 3171, 3789, 4600, 4798, 5655, 7374, 7896, 8160]}, {"comune": "Caprino Veronese", "provincia": "Verona", "values": [5681, 6075, 6715, 7328, 7474, 7730, 7308, 7148, 6774, 6732, 6887, 6952, 7493, 8065, 8604, 8775]}, {"comune": "Casaleone", "provincia": "Verona", "values": [3040, 3706, 3993, 4502, 4908, 5306, 5798, 6474, 5793, 5935, 6257, 6136, 5929, 5939, 5551, 5672]}, {"comune": "Castagnaro", "provincia": "Verona", "values": [4027, 4740, 5231, 5997, 5996, 6330, 6449, 6733, 5088, 4618, 4578, 4319, 4151, 3930, 3587, 3497]}, {"comune": "Castel d'Azzano", "provincia": "Verona", "values": [943, 1028, 1220, 1400, 1709, 2269, 2509, 2893, 3359, 4299, 7841, 9329, 10242, 11739, 12053, 12333]}, {"comune": "Castelnuovo del Garda", "provincia": "Verona", "values": [3479, 3834, 4091, 5074, 5038, 5277, 5565, 6143, 6232, 6841, 7594, 7911, 8612, 12199, 13370, 13306]}, {"comune": "Cavaion Veronese", "provincia": "Verona", "values": [1252, 1387, 1623, 1867, 2005, 2145, 2204, 2320, 2219, 2242, 3087, 3414, 4164, 5471, 6067, 5995]}, {"comune": "Cazzano di Tramigna", "provincia": "Verona", "values": [1611, 1687, 2142, 2246, 2171, 2013, 1879, 1880, 1669, 1491, 1333, 1241, 1302, 1555, 1508, 1466]}, {"comune": "Cerea", "provincia": "Verona", "values": [6723, 7418, 7782, 8408, 9045, 9831, 10343, 11531, 12095, 14068, 14878, 14632, 15254, 16251, 16751, 17304]}, {"comune": "Cerro Veronese", "provincia": "Verona", "values": [753, 894, 984, 1122, 1156, 1161, 991, 1026, 940, 1066, 1273, 1495, 2043, 2434, 2581, 2698]}, {"comune": "Cologna Veneta", "provincia": "Verona", "values": [7435, 7770, 8440, 9608, 10369, 10759, 10700, 10795, 8994, 8481, 7831, 7446, 7890, 8607, 8423, 8543]}, {"comune": "Colognola ai Colli", "provincia": "Verona", "values": [3726, 4131, 4460, 4706, 4861, 4598, 4545, 4874, 4806, 4499, 5943, 6606, 6913, 8141, 8770, 8801]}, {"comune": "Concamarise", "provincia": "Verona", "values": [955, 980, 1041, 1068, 1194, 1118, 1216, 1295, 1252, 1092, 1098, 1078, 1064, 1078, 1074, 1060]}, {"comune": "Costermano sul Garda", "provincia": "Verona", "values": [1552, 1654, 2008, 2344, 2356, 2402, 2284, 2303, 1986, 1849, 2160, 2385, 2986, 3586, 3933, 3996]}, {"comune": "Dolcè", "provincia": "Verona", "values": [2506, 2456, 2464, 2708, 2786, 2587, 2627, 2626, 2500, 2324, 2152, 2151, 2200, 2573, 2502, 2536]}, {"comune": "Erbè", "provincia": "Verona", "values": [1757, 1776, 1803, 1954, 2141, 2120, 2105, 2184, 1860, 1556, 1608, 1581, 1629, 1841, 1886, 1922]}, {"comune": "Erbezzo", "provincia": "Verona", "values": [1064, 1076, 1253, 1295, 1320, 1238, 1140, 1186, 984, 846, 777, 783, 775, 767, 797, 850]}, {"comune": "Ferrara di Monte Baldo", "provincia": "Verona", "values": [600, 607, 657, 715, 545, 639, 549, 470, 369, 293, 218, 167, 188, 221, 259, 302]}, {"comune": "Fumane", "provincia": "Verona", "values": [3590, 4044, 4379, 4594, 4656, 3953, 3722, 3887, 3564, 3518, 3412, 3425, 3816, 4151, 4106, 4193]}, {"comune": "Garda", "provincia": "Verona", "values": [1401, 1511, 1825, 2040, 2255, 2336, 2385, 2538, 2544, 3270, 3487, 3442, 3594, 3978, 4142, 4044]}, {"comune": "Gazzo Veronese", "provincia": "Verona", "values": [5006, 5493, 5885, 6749, 7171, 7796, 7714, 8679, 7127, 6041, 6186, 5798, 5515, 5477, 5178, 5226]}, {"comune": "Grezzana", "provincia": "Verona", "values": [4089, 4451, 5393, 6243, 6339, 6203, 5975, 6462, 6425, 8164, 8794, 9360, 10045, 10827, 10717, 10775]}, {"comune": "Illasi", "provincia": "Verona", "values": [2699, 3121, 3851, 3999, 4031, 3790, 3953, 4044, 3545, 3476, 3944, 4527, 4884, 5302, 5156, 5149]}, {"comune": "Isola della Scala", "provincia": "Verona", "values": [5640, 6057, 6119, 6666, 7525, 8443, 8868, 10275, 10082, 9853, 10317, 10413, 10502, 11457, 11528, 11825]}, {"comune": "Isola Rizza", "provincia": "Verona", "values": [2285, 2282, 2162, 2418, 2667, 2856, 2926, 3135, 2585, 2299, 2504, 2711, 2859, 3255, 3230, 3317]}, {"comune": "Lavagno", "provincia": "Verona", "values": [2095, 2261, 2480, 2619, 2983, 2944, 2916, 3077, 2812, 3085, 3778, 4990, 5964, 8101, 8546, 8730]}, {"comune": "Lazise", "provincia": "Verona", "values": [2970, 3034, 3513, 4045, 4397, 4584, 4596, 4900, 5012, 5336, 5513, 5490, 6055, 6695, 6849, 6771]}, {"comune": "Legnago", "provincia": "Verona", "values": [13403, 14383, 14535, 16973, 18680, 20104, 21771, 23924, 24375, 25967, 27087, 26271, 24274, 24992, 25313, 26084]}, {"comune": "Malcesine", "provincia": "Verona", "values": [2139, 2277, 2420, 2851, 3060, 2652, 2599, 2604, 2876, 3431, 3488, 3398, 3417, 3685, 3596, 3472]}, {"comune": "Marano di Valpolicella", "provincia": "Verona", "values": [1986, 2181, 2486, 2754, 2869, 2989, 2963, 3164, 2761, 2472, 2475, 2538, 2897, 3083, 3115, 3085]}, {"comune": "Mezzane di Sotto", "provincia": "Verona", "values": [1550, 1745, 2096, 2304, 2373, 2146, 2099, 2216, 1870, 1471, 1643, 1789, 1880, 2463, 2541, 2502]}, {"comune": "Minerbe", "provincia": "Verona", "values": [3509, 3782, 3618, 4102, 4648, 4943, 5139, 5268, 4446, 4595, 4625, 4618, 4588, 4667, 4534, 4644]}, {"comune": "Montecchia di Crosara", "provincia": "Verona", "values": [2768, 2938, 3288, 3830, 3837, 3760, 3772, 3944, 3300, 3173, 3585, 3909, 4195, 4462, 4218, 4323]}, {"comune": "Monteforte d'Alpone", "provincia": "Verona", "values": [4578, 5110, 5802, 6152, 6774, 6283, 6193, 6392, 6067, 5921, 6263, 6646, 7065, 8410, 9006, 8953]}, {"comune": "Mozzecane", "provincia": "Verona", "values": [1787, 1950, 1962, 2344, 2393, 2729, 2745, 2964, 2893, 2786, 3592, 4291, 4949, 7005, 8045, 8200]}, {"comune": "Negrar di Valpolicella", "provincia": "Verona", "values": [5261, 5579, 6274, 6673, 7276, 7508, 7472, 8448, 8346, 8633, 10773, 13158, 16184, 16935, 16651, 16378]}, {"comune": "Nogara", "provincia": "Verona", "values": [4325, 4589, 4856, 5391, 5956, 6546, 6577, 7281, 6730, 6951, 7470, 7711, 7899, 8574, 8343, 8488]}, {"comune": "Nogarole Rocca", "provincia": "Verona", "values": [1574, 1611, 1694, 2397, 2748, 3198, 3417, 3469, 2619, 2310, 2365, 2676, 2850, 3455, 3835, 3888]}, {"comune": "Oppeano", "provincia": "Verona", "values": [2819, 3156, 3300, 3998, 5050, 6018, 6288, 6889, 5967, 5556, 6619, 6971, 7514, 9427, 10202, 10383]}, {"comune": "Palù", "provincia": "Verona", "values": [593, 650, 690, 824, 924, 1277, 1342, 1476, 1241, 1020, 1060, 1089, 1124, 1284, 1216, 1196]}, {"comune": "Pastrengo", "provincia": "Verona", "values": [1335, 1310, 1468, 1515, 1619, 1795, 1687, 1867, 1745, 1880, 2055, 2320, 2362, 2893, 3088, 3089]}, {"comune": "Pescantina", "provincia": "Verona", "values": [3935, 4286, 3972, 4200, 4649, 5900, 6190, 6896, 7199, 7711, 8900, 9777, 12414, 16326, 17426, 17630]}, {"comune": "Peschiera del Garda", "provincia": "Verona", "values": [2417, 2962, 2382, 2942, 3290, 3561, 3801, 4968, 6036, 7564, 8807, 8470, 8485, 9598, 10911, 10905]}, {"comune": "Povegliano Veronese", "provincia": "Verona", "values": [1970, 2101, 2514, 2795, 3150, 3485, 3672, 4089, 4137, 4334, 5262, 5709, 6567, 7064, 7330, 7401]}, {"comune": "Pressana", "provincia": "Verona", "values": [2609, 2816, 2818, 3294, 3667, 3781, 3735, 3661, 2816, 2432, 2385, 2405, 2445, 2564, 2510, 2511]}, {"comune": "Rivoli Veronese", "provincia": "Verona", "values": [1106, 1143, 1340, 1586, 1784, 1739, 1586, 1894, 1751, 1539, 1623, 1741, 1980, 2127, 2175, 2368]}, {"comune": "Roncà", "provincia": "Verona", "values": [2994, 3382, 3732, 4343, 4298, 4170, 4198, 4252, 3608, 3246, 3201, 3292, 3385, 3726, 3752, 3755]}, {"comune": "Ronco all'Adige", "provincia": "Verona", "values": [4440, 4384, 4496, 5108, 5942, 6350, 6783, 7074, 6280, 5995, 5873, 5627, 5684, 6179, 5946, 6195]}, {"comune": "Roverchiara", "provincia": "Verona", "values": [3242, 3327, 3150, 3720, 3874, 3938, 4044, 4025, 3281, 2845, 2685, 2587, 2655, 2740, 2582, 2596]}, {"comune": "Roverè Veronese", "provincia": "Verona", "values": [2173, 2471, 2767, 3056, 2959, 2727, 2761, 2878, 2430, 2019, 1920, 1993, 2098, 2127, 2094, 2169]}, {"comune": "Roveredo di Guà", "provincia": "Verona", "values": [1589, 1667, 1629, 1854, 2157, 2157, 2087, 2053, 1713, 1344, 1209, 1229, 1371, 1541, 1618, 1657]}, {"comune": "Salizzole", "provincia": "Verona", "values": [2785, 2913, 3034, 3351, 3725, 3922, 4087, 4449, 3795, 3572, 3765, 3741, 3761, 3745, 3759, 3758]}, {"comune": "San Bonifacio", "provincia": "Verona", "values": [5643, 6256, 6579, 7657, 8524, 9279, 9539, 10389, 10950, 13703, 15318, 15647, 17513, 20275, 21354, 21399]}, {"comune": "San Giovanni Ilarione", "provincia": "Verona", "values": [3575, 3874, 4568, 5115, 5184, 5246, 5451, 5670, 4431, 4049, 4209, 4638, 4889, 5111, 4898, 4848]}, {"comune": "San Giovanni Lupatoto", "provincia": "Verona", "values": [3385, 3955, 4246, 5961, 7459, 8292, 9017, 10483, 13906, 17673, 18179, 20132, 21298, 24148, 25334, 25427]}, {"comune": "San Martino Buon Albergo", "provincia": "Verona", "values": [3373, 3744, 4107, 4655, 5478, 5623, 5800, 6895, 7596, 10064, 12912, 13256, 13095, 14283, 16021, 16797]}, {"comune": "San Mauro di Saline", "provincia": "Verona", "values": [751, 823, 967, 1031, 1085, 1120, 1066, 1024, 788, 578, 525, 535, 568, 553, 580, 606]}, {"comune": "San Pietro di Morubio", "provincia": "Verona", "values": [2284, 2440, 2390, 2719, 2746, 2976, 3065, 3303, 2782, 2752, 2906, 2884, 2848, 3024, 3054, 3145]}, {"comune": "San Pietro in Cariano", "provincia": "Verona", "values": [3313, 3641, 3913, 4099, 4485, 4788, 4854, 5472, 5787, 7297, 9288, 10861, 12484, 12930, 12888, 12996]}, {"comune": "San Zeno di Montagna", "provincia": "Verona", "values": [735, 771, 807, 1052, 1148, 1070, 1023, 1067, 1023, 1069, 1099, 1108, 1243, 1367, 1440, 1544]}, {"comune": "Sanguinetto", "provincia": "Verona", "values": [2664, 2924, 3021, 2780, 3060, 3239, 3471, 3777, 3591, 4144, 4419, 4205, 3998, 4140, 4069, 4318]}, {"comune": "Sant'Ambrogio di Valpolicella", "provincia": "Verona", "values": [3804, 4107, 4555, 4901, 6418, 6006, 5716, 6531, 7308, 8465, 9173, 9137, 9681, 11422, 11923, 11870]}, {"comune": "Sant'Anna d'Alfaedo", "provincia": "Verona", "values": [2491, 2674, 3224, 3227, 3425, 3316, 3251, 3308, 2845, 2439, 2452, 2483, 2462, 2564, 2540, 2660]}, {"comune": "Selva di Progno", "provincia": "Verona", "values": [2493, 2512, 2791, 3118, 3151, 2930, 2759, 2705, 2273, 1596, 1185, 1017, 1001, 934, 884, 921]}, {"comune": "Soave", "provincia": "Verona", "values": [4489, 5022, 5455, 6084, 5966, 5634, 5609, 5887, 5602, 5439, 5359, 6015, 6562, 6908, 7156, 7126]}, {"comune": "Sommacampagna", "provincia": "Verona", "values": [2642, 2915, 3380, 4056, 4601, 5485, 5666, 6688, 7115, 8798, 10257, 10888, 13001, 14615, 14527, 14480]}, {"comune": "Sona", "provincia": "Verona", "values": [3687, 3857, 4351, 5017, 5498, 6094, 6267, 7213, 7659, 8676, 11030, 12577, 14275, 17030, 17585, 17761]}, {"comune": "Sorgà", "provincia": "Verona", "values": [2659, 2853, 3117, 3511, 3853, 4011, 4080, 4402, 3585, 2984, 2950, 3004, 2980, 3112, 2930, 2979]}, {"comune": "Terrazzo", "provincia": "Verona", "values": [2892, 3098, 2847, 3286, 3543, 3767, 3725, 3741, 3074, 2761, 2663, 2551, 2385, 2290, 2140, 2143]}, {"comune": "Torri del Benaco", "provincia": "Verona", "values": [1166, 1259, 1408, 1696, 1835, 1825, 1845, 1950, 2029, 2283, 2383, 2474, 2626, 2802, 2967, 2856]}, {"comune": "Tregnago", "provincia": "Verona", "values": [3218, 3431, 4134, 4202, 4393, 4454, 4575, 4865, 4127, 4019, 4453, 4656, 4896, 4926, 4969, 5065]}, {"comune": "Trevenzuolo", "provincia": "Verona", "values": [2038, 2236, 2429, 2781, 3117, 3331, 3356, 3717, 2908, 2511, 2467, 2353, 2424, 2731, 2757, 2801]}, {"comune": "Valeggio sul Mincio", "provincia": "Verona", "values": [5477, 5437, 5809, 6355, 6794, 7503, 7361, 8159, 8322, 8524, 9171, 9329, 10941, 14300, 15857, 16040]}, {"comune": "Velo Veronese", "provincia": "Verona", "values": [1231, 1348, 1632, 1765, 1767, 1700, 1735, 1713, 1461, 1035, 860, 824, 798, 781, 771, 772]}, {"comune": "Verona", "provincia": "Verona", "values": [86443, 89784, 99579, 116518, 131711, 145863, 153155, 178415, 221001, 266205, 265932, 255824, 253208, 252520, 255985, 255139]}, {"comune": "Veronella", "provincia": "Verona", "values": [2902, 3301, 3159, 3790, 4327, 4268, 4186, 4508, 3720, 3353, 3431, 3442, 3696, 4670, 5140, 5189]}, {"comune": "Vestenanova", "provincia": "Verona", "values": [2946, 3103, 3680, 4050, 4148, 4160, 4086, 4497, 3279, 2691, 2411, 2493, 2614, 2618, 2498, 2499]}, {"comune": "Vigasio", "provincia": "Verona", "values": [2289, 2430, 2579, 3092, 3811, 4200, 4201, 4876, 5003, 4854, 5463, 6050, 6798, 9438, 10220, 10342]}, {"comune": "Villa Bartolomea", "provincia": "Verona", "values": [4502, 5449, 6031, 6945, 7476, 7966, 8156, 8087, 6431, 5708, 5610, 5416, 5368, 5841, 5782, 5895]}, {"comune": "Villafranca di Verona", "provincia": "Verona", "values": [8377, 8729, 9635, 11433, 12296, 13776, 14479, 16169, 19151, 22515, 24558, 27036, 29353, 32747, 33044, 32785]}, {"comune": "Zevio", "provincia": "Verona", "values": [5932, 5968, 6402, 7419, 8150, 8807, 8974, 9457, 8795, 8828, 9883, 10168, 12035, 14413, 15492, 15937]}, {"comune": "Zimella", "provincia": "Verona", "values": [3620, 3867, 4029, 4720, 5239, 5286, 4923, 5176, 4200, 3763, 3710, 3962, 4342, 4834, 4824, 4881]}, {"comune": "Agugliaro", "provincia": "Vicenza", "values": [1144, 1251, 1363, 1645, 1906, 2011, 2041, 1969, 1438, 1173, 1249, 1249, 1251, 1422, 1414, 1406]}, {"comune": "Albettone", "provincia": "Vicenza", "values": [1755, 1978, 2170, 2533, 2737, 2854, 2849, 2726, 2063, 1949, 1773, 1833, 1996, 2066, 1982, 1959]}, {"comune": "Alonte", "provincia": "Vicenza", "values": [898, 885, 1061, 1177, 1240, 1198, 1222, 1096, 815, 644, 686, 870, 1239, 1647, 1593, 1558]}, {"comune": "Altavilla Vicentina", "provincia": "Vicenza", "values": [1816, 2080, 2385, 3056, 3416, 3341, 3454, 3858, 4038, 4254, 5585, 7964, 9547, 11760, 11820, 11760]}, {"comune": "Altissimo", "provincia": "Vicenza", "values": [2135, 2199, 2287, 2450, 2325, 2184, 2227, 2380, 1872, 1698, 1734, 1843, 2263, 2266, 2152, 2157]}, {"comune": "Arcugnano", "provincia": "Vicenza", "values": [3647, 3974, 4403, 4936, 5258, 5417, 5473, 5783, 4765, 4373, 4787, 6023, 7024, 7899, 7717, 7595]}, {"comune": "Arsiero", "provincia": "Vicenza", "values": [3510, 4046, 5060, 5336, 4899, 4454, 4258, 4241, 3902, 3652, 3543, 3320, 3353, 3303, 3021, 3065]}, {"comune": "Arzignano", "provincia": "Vicenza", "values": [8264, 8939, 10426, 11483, 12165, 13186, 13382, 15262, 17177, 20172, 20265, 21107, 23085, 25589, 25094, 25894]}, {"comune": "Asiago", "provincia": "Vicenza", "values": [6054, 6176, 6389, 6776, 6591, 6149, 6318, 6881, 6492, 6727, 6872, 6572, 6509, 6391, 6361, 6203]}, {"comune": "Asigliano Veneto", "provincia": "Vicenza", "values": [934, 981, 1116, 1296, 1357, 1368, 1335, 1363, 1046, 890, 854, 835, 860, 877, 844, 841]}, {"comune": "Barbarano Mossano", "provincia": "Vicenza", "values": [3523, 3871, 4372, 4917, 5451, 5436, 5475, 5491, 4802, 4524, 4960, 4880, 5628, 6352, 6200, 6188]}, {"comune": "Bassano del Grappa", "provincia": "Vicenza", "values": [15284, 15640, 16396, 18690, 21068, 21695, 23106, 26454, 30497, 35129, 38450, 38871, 40736, 42984, 42334, 42279]}, {"comune": "Bolzano Vicentino", "provincia": "Vicenza", "values": [2082, 2269, 2438, 2725, 3157, 3183, 3165, 3621, 3296, 3810, 4248, 4543, 5455, 6509, 6504, 6505]}, {"comune": "Breganze", "provincia": "Vicenza", "values": [3695, 4004, 4369, 5408, 5954, 5395, 5384, 5466, 5795, 6587, 7101, 7407, 7870, 8693, 8381, 8304]}, {"comune": "Brendola", "provincia": "Vicenza", "values": [3162, 3543, 4063, 4385, 4798, 4504, 4452, 4614, 3906, 4115, 5142, 5474, 6216, 6722, 6639, 6609]}, {"comune": "Bressanvido", "provincia": "Vicenza", "values": [1661, 1765, 2016, 2240, 2375, 2303, 2362, 2373, 2120, 2230, 2450, 2591, 2859, 3108, 3167, 3083]}, {"comune": "Brogliano", "provincia": "Vicenza", "values": [1708, 1682, 1927, 1993, 2228, 2042, 2096, 2374, 2164, 2097, 2198, 2356, 2937, 3900, 4015, 4011]}, {"comune": "Caldogno", "provincia": "Vicenza", "values": [2562, 2797, 3373, 3911, 4005, 4046, 4122, 4537, 4322, 5701, 7806, 9402, 10116, 11221, 11321, 11304]}, {"comune": "Caltrano", "provincia": "Vicenza", "values": [1811, 2168, 2546, 2949, 2916, 2186, 2200, 2267, 2106, 2058, 2223, 2329, 2545, 2607, 2527, 2544]}, {"comune": "Calvene", "provincia": "Vicenza", "values": [1162, 1270, 1535, 1639, 1641, 1437, 1510, 1684, 1467, 1397, 1301, 1243, 1274, 1323, 1289, 1270]}, {"comune": "Camisano Vicentino", "provincia": "Vicenza", "values": [4088, 4294, 4531, 5298, 6275, 6237, 6223, 6463, 5777, 6384, 7199, 7620, 8473, 10624, 11165, 11085]}, {"comune": "Campiglia dei Berici", "provincia": "Vicenza", "values": [1556, 1771, 1680, 2172, 2312, 2072, 2088, 2097, 1728, 1617, 1674, 1742, 1746, 1791, 1669, 1669]}, {"comune": "Carrè", "provincia": "Vicenza", "values": [1136, 1451, 1833, 2177, 2368, 2069, 2062, 2218, 2167, 2303, 2480, 2812, 3265, 3647, 3500, 3446]}, {"comune": "Cartigliano", "provincia": "Vicenza", "values": [1743, 1765, 1950, 2235, 2483, 2424, 2526, 2772, 2732, 3054, 3178, 3396, 3537, 3802, 3711, 3637]}, {"comune": "Cassola", "provincia": "Vicenza", "values": [1741, 1959, 2236, 2650, 3003, 3220, 3380, 3826, 5207, 8473, 10247, 11050, 12439, 14128, 15090, 15415]}, {"comune": "Castegnero", "provincia": "Vicenza", "values": [1380, 1623, 1770, 2108, 2309, 2353, 2386, 2304, 1924, 1826, 2053, 2169, 2492, 2857, 2849, 2801]}, {"comune": "Castelgomberto", "provincia": "Vicenza", "values": [2795, 3077, 3336, 3677, 3711, 3676, 3742, 4161, 3763, 4125, 4422, 4697, 5482, 6098, 6132, 6145]}, {"comune": "Chiampo", "provincia": "Vicenza", "values": [3599, 3909, 4572, 5117, 5557, 6152, 6361, 7304, 7683, 9408, 10675, 11448, 12147, 12859, 12534, 12566]}, {"comune": "Chiuppano", "provincia": "Vicenza", "values": [1111, 1419, 1940, 2244, 2178, 1946, 2005, 2137, 2121, 2328, 2449, 2391, 2559, 2626, 2496, 2560]}, {"comune": "Cogollo del Cengio", "provincia": "Vicenza", "values": [1886, 2309, 3020, 3499, 3673, 3113, 3009, 3079, 3021, 2894, 3082, 3123, 3330, 3390, 3156, 3127]}, {"comune": "Colceresa", "provincia": "Vicenza", "values": [4240, 4787, 5078, 5467, 5798, 5266, 5257, 5251, 4800, 4766, 5081, 5182, 5556, 6113, 5911, 5957]}, {"comune": "Cornedo Vicentino", "provincia": "Vicenza", "values": [4194, 4544, 4897, 5212, 5572, 5980, 6647, 7785, 7395, 7998, 9096, 9504, 10566, 11939, 11708, 11740]}, {"comune": "Costabissara", "provincia": "Vicenza", "values": [1549, 1646, 1718, 2020, 2226, 2077, 2166, 2346, 2389, 3025, 4311, 4957, 5692, 7161, 7656, 7648]}, {"comune": "Creazzo", "provincia": "Vicenza", "values": [1561, 1784, 1941, 2373, 2783, 2576, 2664, 3196, 4015, 6949, 9332, 9953, 10433, 11038, 11227, 11219]}, {"comune": "Crespadoro", "provincia": "Vicenza", "values": [2300, 2363, 2642, 2851, 2978, 2814, 2887, 2832, 2193, 1645, 1411, 1243, 1467, 1452, 1289, 1257]}, {"comune": "Dueville", "provincia": "Vicenza", "values": [3159, 3570, 4096, 5771, 6323, 6500, 7173, 7874, 8714, 10205, 11533, 12403, 13063, 13888, 13714, 13578]}, {"comune": "Enego", "provincia": "Vicenza", "values": [2883, 3294, 3890, 4678, 4931, 4745, 4441, 4450, 4016, 3096, 2491, 2236, 2017, 1825, 1554, 1497]}, {"comune": "Fara Vicentino", "provincia": "Vicenza", "values": [2683, 3132, 3648, 4274, 4342, 3952, 3848, 4019, 3481, 3269, 3505, 3661, 3810, 3943, 3721, 3715]}, {"comune": "Foza", "provincia": "Vicenza", "values": [884, 1817, 1430, 1680, 1838, 1578, 1553, 1724, 1375, 893, 793, 793, 733, 717, 661, 674]}, {"comune": "Gallio", "provincia": "Vicenza", "values": [2004, 2013, 2364, 3309, 3676, 2986, 2562, 2817, 2329, 2177, 2144, 2208, 2336, 2413, 2342, 2354]}, {"comune": "Gambellara", "provincia": "Vicenza", "values": [2714, 3041, 3318, 3870, 4033, 3585, 3625, 3555, 3071, 3048, 3251, 3144, 3200, 3319, 3399, 3454]}, {"comune": "Grisignano di Zocco", "provincia": "Vicenza", "values": [1761, 1955, 2109, 2383, 3018, 3143, 3189, 3324, 2907, 3105, 3558, 3966, 4249, 4292, 4277, 4319]}, {"comune": "Grumolo delle Abbadesse", "provincia": "Vicenza", "values": [1755, 1942, 2218, 2419, 2669, 2605, 2587, 2755, 2369, 2369, 2855, 3105, 3311, 3741, 3808, 3900]}, {"comune": "Isola Vicentina", "provincia": "Vicenza", "values": [3565, 3840, 4277, 5236, 5861, 5794, 5583, 6045, 5734, 6241, 6528, 7046, 8034, 9639, 10268, 10290]}, {"comune": "Laghi", "provincia": "Vicenza", "values": [878, 854, 898, 930, 862, 738, 654, 676, 488, 343, 188, 173, 128, 123, 120, 135]}, {"comune": "Lastebasse", "provincia": "Vicenza", "values": [941, 652, 736, 818, 838, 728, 624, 636, 582, 466, 319, 287, 243, 229, 189, 174]}, {"comune": "Longare", "provincia": "Vicenza", "values": [2456, 2842, 3231, 3766, 4232, 4251, 4297, 4764, 4642, 4973, 5224, 5176, 5339, 5654, 5523, 5531]}, {"comune": "Lonigo", "provincia": "Vicenza", "values": [9299, 9839, 10390, 11293, 12419, 12440, 12393, 12639, 11618, 11531, 12356, 12709, 14005, 15581, 15746, 16058]}, {"comune": "Lugo di Vicenza", "provincia": "Vicenza", "values": [2251, 2513, 2816, 3102, 3270, 3172, 3307, 3806, 3856, 3530, 3555, 3550, 3719, 3739, 3562, 3510]}, {"comune": "Lusiana Conco", "provincia": "Vicenza", "values": [7834, 8375, 10059, 11030, 12509, 9660, 8399, 7702, 6514, 5624, 5190, 5013, 5123, 4946, 4553, 4567]}, {"comune": "Malo", "provincia": "Vicenza", "values": [4834, 5266, 6123, 7379, 8157, 7924, 7817, 8333, 8019, 8987, 10549, 11197, 12307, 14641, 14682, 14706]}, {"comune": "Marano Vicentino", "provincia": "Vicenza", "values": [2242, 2492, 2960, 3758, 4010, 4301, 4708, 5430, 5917, 6927, 7643, 7898, 8879, 9662, 9351, 9211]}, {"comune": "Marostica", "provincia": "Vicenza", "values": [8322, 9572, 10092, 11523, 13056, 11933, 11427, 11787, 11093, 11975, 12379, 12639, 12848, 13783, 13966, 14121]}, {"comune": "Monte di Malo", "provincia": "Vicenza", "values": [2576, 2795, 3169, 3373, 3686, 3556, 3551, 3697, 3301, 2847, 2752, 2640, 2755, 2887, 2797, 2836]}, {"comune": "Montebello Vicentino", "provincia": "Vicenza", "values": [4223, 4455, 4669, 5080, 6016, 4953, 4995, 5410, 4849, 4860, 5287, 5436, 5771, 6531, 6319, 6317]}, {"comune": "Montecchio Maggiore", "provincia": "Vicenza", "values": [5417, 5961, 6366, 7490, 8115, 8210, 8155, 9332, 12104, 17890, 19755, 19754, 21061, 23315, 23216, 24063]}, {"comune": "Montecchio Precalcino", "provincia": "Vicenza", "values": [2058, 2232, 2743, 3330, 3453, 3253, 3451, 3942, 4209, 4415, 4373, 4239, 4623, 4988, 4907, 4869]}, {"comune": "Montegalda", "provincia": "Vicenza", "values": [2045, 2416, 2493, 2859, 3349, 3276, 3266, 3419, 3102, 2778, 2890, 2813, 3099, 3343, 3376, 3324]}, {"comune": "Montegaldella", "provincia": "Vicenza", "values": [1317, 1507, 1703, 1927, 2152, 2079, 2110, 2053, 1630, 1248, 1308, 1555, 1721, 1788, 1785, 1765]}, {"comune": "Monteviale", "provincia": "Vicenza", "values": [798, 908, 1043, 1271, 1359, 1312, 1326, 1404, 1358, 1624, 1678, 1846, 2034, 2600, 2801, 2786]}, {"comune": "Monticello Conte Otto", "provincia": "Vicenza", "values": [1497, 1628, 2006, 2750, 3029, 2996, 3264, 3581, 3807, 4619, 6641, 8334, 8790, 9156, 8983, 9094]}, {"comune": "Montorso Vicentino", "provincia": "Vicenza", "values": [1819, 2038, 2183, 2437, 2342, 2234, 2257, 2511, 2365, 2484, 2642, 2685, 2854, 3179, 3031, 3001]}, {"comune": "Mussolente", "provincia": "Vicenza", "values": [2474, 2646, 2862, 3415, 3791, 3781, 3754, 4182, 4217, 4733, 5680, 6059, 6663, 7653, 7634, 7535]}, {"comune": "Nanto", "provincia": "Vicenza", "values": [1377, 1601, 1924, 2131, 2258, 2399, 2333, 2309, 1777, 1727, 1879, 2034, 2312, 3082, 3105, 3052]}, {"comune": "Nogarole Vicentino", "provincia": "Vicenza", "values": [1026, 1089, 1273, 1500, 1520, 1484, 1446, 1375, 1082, 810, 737, 825, 995, 1136, 1219, 1263]}, {"comune": "Nove", "provincia": "Vicenza", "values": [2064, 2083, 2339, 2538, 2660, 2554, 2569, 2945, 3403, 4373, 4784, 4698, 4865, 5069, 4894, 4854]}, {"comune": "Noventa Vicentina", "provincia": "Vicenza", "values": [5027, 5593, 5818, 6453, 7228, 6953, 7341, 7323, 6511, 7330, 7906, 7929, 8272, 8810, 8929, 9286]}, {"comune": "Orgiano", "provincia": "Vicenza", "values": [2438, 2561, 2887, 3215, 3395, 3410, 3354, 3114, 2473, 2379, 2691, 2973, 3084, 3151, 3012, 2976]}, {"comune": "Pedemonte", "provincia": "Vicenza", "values": [793, 859, 1000, 1054, 1173, 1191, 1027, 1102, 954, 793, 793, 795, 830, 768, 700, 677]}, {"comune": "Pianezze", "provincia": "Vicenza", "values": [931, 963, 930, 1156, 1318, 1240, 1294, 1408, 1224, 1430, 1696, 1826, 1852, 2060, 2163, 2225]}, {"comune": "Piovene Rocchette", "provincia": "Vicenza", "values": [1887, 2286, 3941, 4336, 4493, 4046, 4489, 5250, 5998, 6691, 7705, 7557, 7723, 8295, 8160, 8327]}, {"comune": "Pojana Maggiore", "provincia": "Vicenza", "values": [3172, 3472, 3538, 4071, 4864, 4972, 4891, 4812, 3726, 3583, 3772, 4147, 4216, 4459, 4271, 4249]}, {"comune": "Posina", "provincia": "Vicenza", "values": [3330, 3447, 3536, 3190, 3273, 2653, 2122, 2045, 1553, 1075, 815, 737, 727, 577, 558, 582]}, {"comune": "Pove del Grappa", "provincia": "Vicenza", "values": [1489, 1562, 1814, 2221, 2447, 1993, 1800, 1924, 1873, 1742, 2024, 2475, 2846, 3093, 3160, 3133]}, {"comune": "Pozzoleone", "provincia": "Vicenza", "values": [1209, 1309, 1710, 1966, 2187, 2121, 2155, 2257, 2027, 1982, 2256, 2292, 2597, 2793, 2773, 2752]}, {"comune": "Quinto Vicentino", "provincia": "Vicenza", "values": [1792, 1945, 2071, 2378, 2613, 2614, 2729, 3006, 2783, 3025, 3581, 4109, 4641, 5694, 5868, 5836]}, {"comune": "Recoaro Terme", "provincia": "Vicenza", "values": [5954, 6163, 6591, 7133, 7323, 7393, 7505, 8563, 8584, 8359, 7827, 7466, 7266, 6764, 6076, 5767]}, {"comune": "Roana", "provincia": "Vicenza", "values": [4830, 4768, 5023, 6250, 6790, 5068, 4932, 4720, 4087, 3766, 3569, 3608, 3774, 4317, 4161, 4154]}, {"comune": "Romano d'Ezzelino", "provincia": "Vicenza", "values": [2691, 2874, 3203, 3802, 4335, 4371, 4266, 5010, 5430, 7221, 10069, 12184, 13912, 14484, 14150, 14002]}, {"comune": "Rosà", "provincia": "Vicenza", "values": [4554, 5112, 5835, 6916, 7731, 7689, 8075, 8973, 9160, 10227, 11277, 12021, 12516, 14071, 14649, 14653]}, {"comune": "Rossano Veneto", "provincia": "Vicenza", "values": [3044, 3289, 3659, 4223, 4505, 5029, 5100, 5361, 5165, 6159, 6523, 6488, 6567, 7922, 8183, 8296]}, {"comune": "Rotzo", "provincia": "Vicenza", "values": [924, 1024, 1086, 1288, 1346, 1102, 967, 905, 789, 637, 568, 600, 570, 638, 641, 644]}, {"comune": "Salcedo", "provincia": "Vicenza", "values": [1036, 1184, 1487, 1517, 1593, 1363, 1305, 1400, 1103, 1004, 1024, 990, 1029, 1038, 1024, 989]}, {"comune": "San Pietro Mussolino", "provincia": "Vicenza", "values": [779, 791, 869, 968, 927, 838, 865, 1004, 799, 929, 1174, 1352, 1489, 1613, 1544, 1504]}, {"comune": "San Vito di Leguzzano", "provincia": "Vicenza", "values": [1500, 1759, 1840, 2129, 2239, 2270, 2232, 2394, 2473, 2607, 2888, 3065, 3390, 3584, 3571, 3502]}, {"comune": "Sandrigo", "provincia": "Vicenza", "values": [3531, 3851, 4071, 4756, 5514, 5469, 5632, 6104, 6065, 6804, 7121, 7210, 7904, 8392, 8221, 8226]}, {"comune": "Santorso", "provincia": "Vicenza", "values": [2063, 2342, 3094, 3486, 3715, 3674, 3815, 4071, 4404, 4842, 4993, 5007, 5272, 5746, 5530, 5633]}, {"comune": "Sarcedo", "provincia": "Vicenza", "values": [1819, 2121, 2422, 2833, 3159, 3195, 3229, 3431, 3732, 4194, 4625, 4675, 5092, 5303, 5337, 5299]}, {"comune": "Sarego", "provincia": "Vicenza", "values": [2606, 2834, 3126, 3549, 3976, 3893, 3924, 3741, 3093, 3344, 4425, 4999, 5563, 6641, 6709, 6868]}, {"comune": "Schiavon", "provincia": "Vicenza", "values": [1503, 1496, 1674, 1896, 2027, 1910, 1964, 2001, 1867, 1969, 2152, 2237, 2327, 2600, 2603, 2601]}, {"comune": "Schio", "provincia": "Vicenza", "values": [13525, 16472, 19755, 22131, 23255, 23414, 24610, 27700, 30678, 35075, 36049, 36351, 37444, 39131, 38533, 38989]}, {"comune": "Solagna", "provincia": "Vicenza", "values": [1706, 1860, 2066, 2500, 2642, 2619, 1502, 1908, 1811, 1485, 1554, 1519, 1759, 1895, 1807, 1830]}, {"comune": "Sossano", "provincia": "Vicenza", "values": [2553, 2782, 3200, 3616, 4121, 3920, 3900, 3749, 3270, 3579, 3877, 3851, 4128, 4401, 4185, 4136]}, {"comune": "Tezze sul Brenta", "provincia": "Vicenza", "values": [3437, 3620, 4255, 5007, 5402, 5602, 5848, 6406, 6207, 6713, 8171, 9463, 10405, 12600, 12891, 12999]}, {"comune": "Thiene", "provincia": "Vicenza", "values": [6118, 6635, 7655, 8878, 9930, 10748, 11203, 12298, 13968, 17367, 18943, 19894, 20977, 23254, 23945, 24330]}, {"comune": "Tonezza del Cimone", "provincia": "Vicenza", "values": [1080, 1161, 1196, 1417, 1489, 1314, 1193, 1196, 1101, 979, 700, 661, 619, 577, 501, 511]}, {"comune": "Torrebelvicino", "provincia": "Vicenza", "values": [2528, 3693, 4418, 5002, 5168, 4759, 5012, 5577, 5697, 5196, 4952, 4892, 5476, 5989, 5817, 5860]}, {"comune": "Torri di Quartesolo", "provincia": "Vicenza", "values": [2027, 2265, 2432, 2829, 3171, 3387, 3328, 3523, 3538, 5055, 8139, 9844, 10981, 11755, 11738, 11817]}, {"comune": "Trissino", "provincia": "Vicenza", "values": [3547, 3904, 4415, 4844, 5092, 4929, 5260, 5768, 5098, 5538, 6655, 7392, 7794, 8620, 8638, 8651]}, {"comune": "Val Liona", "provincia": "Vicenza", "values": [2981, 3141, 3756, 3995, 4392, 4264, 4145, 3783, 2774, 2473, 2485, 2612, 2843, 3047, 3060, 3072]}, {"comune": "Valbrenta", "provincia": "Vicenza", "values": [9880, 10208, 10999, 11341, 13187, 9392, 8671, 8628, 7107, 5931, 5481, 5423, 5641, 5385, 4870, 4867]}, {"comune": "Valdagno", "provincia": "Vicenza", "values": [8782, 9618, 12918, 14323, 15811, 17361, 20836, 26413, 27260, 28432, 28545, 27449, 27193, 26575, 25697, 25801]}, {"comune": "Valdastico", "provincia": "Vicenza", "values": [2237, 2456, 2735, 3023, 3192, 2890, 2608, 2770, 2468, 1822, 1740, 1589, 1480, 1389, 1175, 1186]}, {"comune": "Valli del Pasubio", "provincia": "Vicenza", "values": [5128, 5255, 5756, 6292, 6045, 5561, 5493, 5513, 4698, 4045, 3853, 3611, 3567, 3345, 3064, 3018]}, {"comune": "Velo d'Astico", "provincia": "Vicenza", "values": [1949, 2228, 2817, 3162, 2987, 2495, 2586, 2693, 2516, 2285, 2371, 2254, 2350, 2400, 2244, 2224]}, {"comune": "Vicenza", "provincia": "Vicenza", "values": [37475, 38713, 43703, 53107, 59611, 64372, 69379, 79862, 98019, 116620, 114598, 107454, 107223, 111500, 110293, 110741]}, {"comune": "Villaga", "provincia": "Vicenza", "values": [1876, 2112, 2484, 2876, 3050, 2932, 2880, 2842, 2254, 1906, 1747, 1786, 1859, 1963, 1872, 1924]}, {"comune": "Villaverla", "provincia": "Vicenza", "values": [2135, 2167, 2523, 3045, 3239, 3195, 3446, 3960, 3759, 4131, 4434, 4813, 5389, 6169, 6047, 6006]}, {"comune": "Zanè", "provincia": "Vicenza", "values": [1258, 1487, 1786, 2099, 2406, 2440, 2470, 2843, 2952, 3831, 5022, 5358, 6114, 6642, 6587, 6498]}, {"comune": "Zermeghedo", "provincia": "Vicenza", "values": [537, 595, 633, 768, 812, 826, 787, 819, 773, 774, 795, 972, 1234, 1358, 1347, 1333]}, {"comune": "Zovencedo", "provincia": "Vicenza", "values": [759, 825, 908, 1013, 1082, 1094, 1030, 1005, 839, 691, 712, 727, 866, 795, 798, 815]}, {"comune": "Zugliano", "provincia": "Vicenza", "values": [2383, 2728, 3115, 3769, 4002, 3988, 4063, 4416, 4541, 5152, 5394, 5527, 6166, 6690, 6783, 6850]}, {"comune": "Sovizzo", "provincia": "Vicenza", "values": [2579, 2831, 3164, 3486, 3930, 3597, 3614, 3704, 3379, 3564, 4643, 5652, 6516, 7885, 8283, 8213]}];
+
+const PROVINCE = [...new Set(RAW_ROWS.map(d => d.provincia))].sort();
+const COMUNI_ALL = RAW_ROWS.map(d => d.comune).sort();
+const rowByComune = new Map(RAW_ROWS.map(d => [d.comune, d]));
+
+/* 10 colori fissi e distinti tra loro, assegnati alla POSIZIONE in classifica
+   (1°, 2°, 3°...), non al singolo comune: se un comune sale o scende cambia colore
+   insieme alla sua posizione, il che rende ancora più leggibile lo scambio. */
+/* Colore unico per tutte le barre della classifica: niente semantica per posizione,
+   solo l'accento di brand. Evita rumore visivo e non rompe la lettura durante "Avvia". */
+const RANK_BAR_COLOR = "#c9a256";
+const RANK_BAR_STROKE = "#9c7a35";
+
+/* Colore pastello stabile per ogni comune, usato solo nella sezione di confronto
+   sotto (lì serve riconoscere sempre lo stesso comune tra grafico, lista e tabella). */
+const comuneIndex = new Map(COMUNI_ALL.map((c,i) => [c,i]));
+function colorScale(comune){
+  const i = comuneIndex.get(comune) ?? 0;
+  const hue = (i * 137.508) % 360;
+  return `hsl(${hue.toFixed(1)}, 46%, 63%)`;
+}
+const fmt = d3.format(",.0f");
+
+function comuniOfProvincia(provincia){
+  return provincia === "Tutte" ? COMUNI_ALL : RAW_ROWS.filter(d => d.provincia === provincia).map(d => d.comune).sort();
+}
+function seriesForComune(comune){
+  const row = rowByComune.get(comune);
+  if(!row) return [];
+  return YEARS.map((anno, i) => ({anno, popolazione: row.values[i]}));
+}
+function rankRows(year, provincia){
+  const yi = YEARS.indexOf(year);
+  const rows = provincia === "Tutte" ? RAW_ROWS : RAW_ROWS.filter(d => d.provincia === provincia);
+  return rows
+    .map(d => ({comune: d.comune, provincia: d.provincia, popolazione: d.values[yi]}))
+    .filter(d => d.popolazione != null);
+}
+
+/* ---------- Sezione 1: classifica dinamica ---------- */
+
+let rankProvincia = "Tutte";
+let rankDirection = "top";
+let currentYear = YEARS[YEARS.length - 1];
+let playing = false;
+let playTimer = null;
+const STEP_MS = 1400; // durata di ogni passo dell'animazione (rallentata su richiesta)
+
+const provSelectRank = d3.select("#provincia-select-rank");
+provSelectRank.selectAll("option")
+  .data(["Tutte", ...PROVINCE])
+  .join("option")
+  .attr("value", d => d)
+  .text(d => d === "Tutte" ? "Tutte le province" : d);
+provSelectRank.on("change", function(){
+  rankProvincia = this.value;
+  drawRanking();
+});
+
+d3.selectAll("#rank-direction-toggle button").on("click", function(){
+  rankDirection = this.getAttribute("data-dir");
+  d3.selectAll("#rank-direction-toggle button").classed("active", false);
+  d3.select(this).classed("active", true);
+  drawRanking();
+});
+
+const yearTicksContainer = d3.select("#year-ticks");
+yearTicksContainer.selectAll("span")
+  .data(YEARS)
+  .join("span")
+  .text(d => d);
+
+function updateYearTicks(){
+  yearTicksContainer.selectAll("span")
+    .classed("current", d => d === currentYear);
+  d3.select("#year-watermark").text(currentYear);
+}
+
+const slider = d3.select("#year-slider")
+  .attr("min", 0)
+  .attr("max", YEARS.length - 1)
+  .attr("step", 1)
+  .attr("value", YEARS.length - 1)
+  .on("input", function(){
+    currentYear = YEARS[+this.value];
+    updateYearTicks();
+    drawRanking();
+  });
+updateYearTicks();
+
+d3.select("#play-btn").on("click", function(){
+  playing = !playing;
+  d3.select("#play-icon").html(playing ? "&#10074;&#10074;" : "&#9654;");
+  if(playing){
+    let idx = YEARS.indexOf(currentYear);
+    playTimer = setInterval(() => {
+      idx = (idx + 1) % YEARS.length;
+      currentYear = YEARS[idx];
+      slider.property("value", idx);
+      updateYearTicks();
+      drawRanking();
+      if(idx === YEARS.length - 1){
+        clearInterval(playTimer);
+        playing = false;
+        d3.select("#play-icon").html("&#9654;");
+      }
+    }, STEP_MS);
+  } else {
+    clearInterval(playTimer);
+  }
+});
+
+const rankSvg = d3.select("#ranking-chart");
+const rankMargin = {top: 10, right: 70, bottom: 10, left: 190};
+
+function drawRanking(){
+  const allRows = rankRows(currentYear, rankProvincia);
+
+  d3.select("#year-watermark").classed("bottom", rankDirection === "top");
+
+  const sorted = [...allRows].sort((a,b) =>
+    rankDirection === "top" ? b.popolazione - a.popolazione : a.popolazione - b.popolazione
+  );
+  const rows = sorted.slice(0, 10);
+  const maxVal = d3.max(rows, d => d.popolazione) || 1;
+
+  const width = document.getElementById("ranking-chart").clientWidth || 900;
+  const barHeight = 30;
+  const height = rows.length * barHeight + rankMargin.top + rankMargin.bottom;
+  rankSvg.attr("viewBox", [0, 0, width, height]).attr("height", height);
+
+  const innerWidth = width - rankMargin.left - rankMargin.right;
+  const x = d3.scaleLinear().domain([0, maxVal]).range([0, innerWidth]);
+
+  let g = rankSvg.selectAll("g.plot").data([null]);
+  g = g.join("g").attr("class", "plot").attr("transform", `translate(${rankMargin.left},${rankMargin.top})`);
+
+  const bars = g.selectAll("g.bar-group").data(rows, d => d.comune);
+
+  const enter = bars.enter().append("g").attr("class", "bar-group")
+    .attr("transform", (d,i) => `translate(0,${i * barHeight})`);
+
+  enter.append("text").attr("class", "rank-num")
+    .attr("x", -178).attr("y", barHeight/2 + 4);
+  enter.append("text").attr("class", "bar-label-name")
+    .attr("x", -148).attr("y", barHeight/2 + 4);
+  enter.append("rect").attr("class", "bar-rank")
+    .attr("x", 0).attr("y", 5).attr("height", barHeight - 12).attr("rx", 2)
+    .attr("width", 0);
+  enter.append("text").attr("class", "bar-label-value")
+    .attr("y", barHeight/2 + 4);
+
+  const merged = enter.merge(bars);
+  merged.transition().duration(700)
+    .attr("transform", (d,i) => `translate(0,${i * barHeight})`);
+  merged.select("rect.bar-rank")
+    .style("fill", RANK_BAR_COLOR)
+    .style("stroke", RANK_BAR_STROKE)
+    .style("stroke-width", "1px")
+    .transition().duration(700)
+    .attr("width", d => x(d.popolazione));
+  merged.select("text.bar-label-value").transition().duration(700)
+    .attr("x", d => x(d.popolazione) + 8)
+    .text(d => fmt(d.popolazione));
+  merged.select("text.bar-label-name").text(d => d.comune);
+  merged.select("text.rank-num").text((d,i) => i+1 + ".");
+
+  bars.exit().remove();
+}
+
+/* ---------- Sezione 2: confronto comuni ---------- */
+
+let compareProvincia = "Tutte";
+let selectedComuni = new Set();
+let searchTerm = "";
+
+const provSelectCompare = d3.select("#provincia-select-compare");
+provSelectCompare.selectAll("option")
+  .data(["Tutte", ...PROVINCE])
+  .join("option")
+  .attr("value", d => d)
+  .text(d => d === "Tutte" ? "Tutte le province" : d);
+provSelectCompare.on("change", function(){
+  compareProvincia = this.value;
+  renderComuneList();
+});
+
+d3.select("#comune-search").on("input", function(){
+  searchTerm = this.value.trim().toLowerCase();
+  renderComuneList();
+});
+
+const yearFrom = d3.select("#year-from");
+const yearTo = d3.select("#year-to");
+[yearFrom, yearTo].forEach(sel => {
+  sel.selectAll("option").data(YEARS).join("option").attr("value", d => d).text(d => d);
+});
+yearFrom.property("value", YEARS[0]);
+yearTo.property("value", YEARS[YEARS.length - 1]);
+yearFrom.on("change", () => { drawLineChart(); drawTable(); });
+yearTo.on("change", () => { drawLineChart(); drawTable(); });
+
+function renderComuneList(){
+  const visibleSet = new Set(comuniOfProvincia(compareProvincia));
+  const list = COMUNI_ALL.filter(c => visibleSet.has(c) && c.toLowerCase().includes(searchTerm));
+
+  const container = d3.select("#comune-list");
+  const items = container.selectAll("label.comune-item").data(list, d => d);
+
+  items.exit().remove();
+
+  const enter = items.enter().append("label").attr("class", "comune-item");
+  enter.append("input").attr("type", "checkbox");
+  enter.append("span").attr("class", "swatch");
+  enter.append("span").attr("class", "name-text");
+
+  const merged = enter.merge(items);
+  merged.select("span.swatch").style("background", d => colorScale(d));
+  merged.select("span.name-text").text(d => d);
+  merged.select("input")
+    .property("checked", d => selectedComuni.has(d))
+    .on("change", function(event, d){
+      if(this.checked) selectedComuni.add(d); else selectedComuni.delete(d);
+      drawLineChart();
+      drawTable();
+      renderSelectedChips();
+    });
+
+  merged.order();
+}
+
+function renderSelectedChips(){
+  const list = [...selectedComuni].sort();
+  const container = d3.select("#selected-chips");
+
+  container.select("p.empty-note").remove();
+
+  if(list.length === 0){
+    container.selectAll("span.chip").remove();
+    container.append("p").attr("class","empty-note").text("Nessun comune selezionato.");
+    return;
+  }
+
+  const chips = container.selectAll("span.chip").data(list, d => d);
+  chips.exit().remove();
+
+  const enter = chips.enter().append("span").attr("class","chip");
+  enter.append("span").attr("class","swatch");
+  enter.append("span").attr("class","chip-name");
+  enter.append("button").attr("type","button").attr("aria-label","Rimuovi").text("×");
+
+  const merged = enter.merge(chips);
+  merged.select("span.swatch").style("background", d => colorScale(d));
+  merged.select("span.chip-name").text(d => d);
+  merged.select("button").on("click", (event, d) => {
+    selectedComuni.delete(d);
+    renderComuneList();
+    renderSelectedChips();
+    drawLineChart();
+    drawTable();
+  });
+
+  merged.order();
+}
+
+const lineSvg = d3.select("#line-chart");
+const lineMargin = {top: 20, right: 24, bottom: 30, left: 56};
+
+function safeClass(comune){
+  return comune.normalize("NFD").replace(/[^a-zA-Z0-9]/g, "");
+}
+
+function drawLineChart(){
+  const width = document.getElementById("line-chart").clientWidth || 900;
+  const height = 320;
+  lineSvg.attr("viewBox", [0,0,width,height]).attr("height", height);
+
+  const selected = [...selectedComuni];
+  const innerW = width - lineMargin.left - lineMargin.right;
+  const innerH = height - lineMargin.top - lineMargin.bottom;
+
+  let g = lineSvg.selectAll("g.plot").data([null]);
+  g = g.join("g").attr("class","plot").attr("transform", `translate(${lineMargin.left},${lineMargin.top})`);
+  g.selectAll("*").remove();
+
+  if(selected.length === 0){
+    g.append("text").attr("x", innerW/2).attr("y", innerH/2)
+      .attr("text-anchor","middle").attr("fill","#9AA3A0").attr("font-size",13)
+      .text("Seleziona almeno un comune per vedere il grafico");
+    return;
+  }
+
+  const x = d3.scalePoint().domain(YEARS).range([0, innerW]).padding(0.5);
+  const allVals = selected.flatMap(c => seriesForComune(c).map(d => d.popolazione).filter(v => v != null));
+  const y = d3.scaleLinear().domain([0, d3.max(allVals) * 1.08]).range([innerH, 0]);
+
+  g.append("g").attr("class","gridline")
+    .call(d3.axisLeft(y).ticks(5).tickSize(-innerW).tickFormat(""));
+  g.append("g").attr("class","axis").attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x));
+  g.append("g").attr("class","axis").call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(".2s")));
+
+  const line = d3.line()
+    .defined(d => d.popolazione != null)
+    .x(d => x(d.anno))
+    .y(d => y(d.popolazione));
+
+  selected.forEach(comune => {
+    const series = seriesForComune(comune);
+    g.append("path").datum(series)
+      .attr("class","trend-line")
+      .attr("stroke", colorScale(comune))
+      .attr("d", line);
+    g.selectAll(`circle.dot-${safeClass(comune)}`)
+      .data(series.filter(d => d.popolazione != null)).join("circle")
+      .attr("class", `trend-dot dot-${safeClass(comune)}`)
+      .attr("cx", d => x(d.anno)).attr("cy", d => y(d.popolazione))
+      .attr("r", 3.5).attr("fill", colorScale(comune))
+      .append("title").text(d => `${comune}, ${d.anno}: ${fmt(d.popolazione)} ab.`);
+  });
+}
+
+function drawTable(){
+  const selected = [...selectedComuni];
+  const yFrom = +yearFrom.property("value");
+  const yTo = +yearTo.property("value");
+  const container = d3.select("#table-container");
+  container.selectAll("*").remove();
+
+  if(selected.length === 0){
+    container.append("p").attr("class","empty-note").text("Nessun comune selezionato.");
+    return;
+  }
+
+  const rows = selected.map(comune => {
+    const series = seriesForComune(comune);
+    const from = series.find(d => d.anno === yFrom);
+    const to = series.find(d => d.anno === yTo);
+    const pFrom = from ? from.popolazione : null;
+    const pTo = to ? to.popolazione : null;
+    const diff = (pFrom != null && pTo != null) ? pTo - pFrom : null;
+    const pct = (diff != null && pFrom) ? (diff / pFrom * 100) : null;
+    return {comune, pFrom, pTo, diff, pct};
+  }).sort((a,b) => (b.pTo ?? -Infinity) - (a.pTo ?? -Infinity));
+
+  const table = container.append("table").attr("class","var-table");
+  const thead = table.append("thead").append("tr");
+  ["Comune", `${yFrom}`, `${yTo}`, "Variazione assoluta", "Variazione %"].forEach(h => thead.append("th").text(h));
+
+  const tbody = table.append("tbody");
+  rows.forEach(r => {
+    const tr = tbody.append("tr");
+    const nameCell = tr.append("td");
+    const wrap = nameCell.append("div").attr("class","comune-cell");
+    wrap.append("span").attr("class","swatch").style("background", colorScale(r.comune));
+    wrap.append("span").text(r.comune);
+    tr.append("td").text(r.pFrom != null ? fmt(r.pFrom) : "—");
+    tr.append("td").text(r.pTo != null ? fmt(r.pTo) : "—");
+    tr.append("td").attr("class", r.diff > 0 ? "positive" : r.diff < 0 ? "negative" : "")
+      .text(r.diff != null ? (r.diff > 0 ? "+" : "") + fmt(r.diff) : "—");
+    tr.append("td").attr("class", r.pct > 0 ? "positive" : r.pct < 0 ? "negative" : "")
+      .text(r.pct != null ? (r.pct > 0 ? "+" : "") + r.pct.toFixed(1) + "%" : "—");
+  });
+}
+
+/* ---------- init ---------- */
+drawRanking();
+renderComuneList();
+renderSelectedChips();
+drawLineChart();
+drawTable();
+window.addEventListener("resize", () => { drawRanking(); drawLineChart(); });
+</script>
+</body>
+</html>
