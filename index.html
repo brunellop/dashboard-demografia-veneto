@@ -34,7 +34,6 @@
     line-height:1.45;
   }
   .wrap{max-width:1180px;margin:0 auto;padding:0 28px 100px;}
-  @media (max-width:480px){.wrap{padding:0 16px 70px;}}
 
   /* ---------- HEADER ---------- */
   header.top{
@@ -110,10 +109,6 @@
 
   /* ---------- YEAR / PLAY CONTROLS ---------- */
   .year-control{flex:2;min-width:360px;display:flex;flex-direction:column;}
-  @media (max-width:600px){
-    .select-row{gap:14px;}
-    .field, .year-control{min-width:0;width:100%;flex:1 1 100%;}
-  }
   .year-slider-row{display:flex;align-items:center;gap:16px;}
   input[type=range]{
     -webkit-appearance:none;appearance:none;flex:1;min-width:0;display:block;
@@ -222,6 +217,17 @@
     color:var(--muted);font-size:12.5px;font-family:'IBM Plex Mono', monospace;line-height:1.6;
   }
   footer code{background:var(--gold-soft);color:var(--ink);padding:1px 5px;border-radius:3px;}
+
+  /* ---------- MOBILE OVERRIDES (in fondo: deve vincere su tutte le regole base sopra) ---------- */
+  @media (max-width:480px){.wrap{padding:0 16px 70px;}}
+  @media (max-width:600px){
+    .select-row{gap:14px;}
+    .field, .year-control{min-width:0;width:100%;flex:1 1 100%;}
+    .year-ticks{display:none;}
+    .year-watermark{position:static;text-align:right;font-size:26px;margin-bottom:2px;}
+    .range-row{flex-wrap:wrap;}
+    .range-row .field{flex:1 1 100%;}
+  }
 </style>
 </head>
 <body>
