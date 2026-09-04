@@ -80,6 +80,11 @@
   /* ---------- FIELDS / SELECTS ---------- */
   .select-row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;}
   .field{display:flex;flex-direction:column;min-width:200px;}
+  @media (max-width:600px){
+    html,body{overflow-x:hidden;}
+    .select-row{gap:14px;}
+    .field, .year-control{min-width:0;width:100%;flex:1 1 100%;}
+  }
   .field label{
     display:block;font-size:12px;letter-spacing:.04em;text-transform:uppercase;
     color:var(--muted);margin-bottom:7px;font-weight:500;
@@ -152,7 +157,10 @@
   .compare-layout{display:grid;grid-template-columns:240px 1fr;gap:28px;margin-top:22px;}
   @media (max-width:820px){.compare-layout{grid-template-columns:1fr;}}
   .comune-picker{border-right:1px dashed var(--paper-line);padding-right:22px;max-height:420px;display:flex;flex-direction:column;}
-  @media (max-width:820px){.comune-picker{border-right:none;border-bottom:1px dashed var(--paper-line);padding-right:0;padding-bottom:18px;max-height:none;}}
+  @media (max-width:820px){
+    .comune-picker{border-right:none;border-bottom:1px dashed var(--paper-line);padding-right:0;padding-bottom:18px;max-height:none;}
+    .comune-list{max-height:260px;}
+  }
   .comune-list{overflow-y:auto;margin-top:14px;padding-right:4px;}
 
   .selected-block{margin-top:16px;padding-top:14px;border-top:1px dashed var(--paper-line);}
