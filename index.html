@@ -80,11 +80,6 @@
   /* ---------- FIELDS / SELECTS ---------- */
   .select-row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;}
   .field{display:flex;flex-direction:column;min-width:200px;}
-  @media (max-width:600px){
-    html,body{overflow-x:hidden;}
-    .select-row{gap:14px;}
-    .field, .year-control{min-width:0;width:100%;flex:1 1 100%;}
-  }
   .field label{
     display:block;font-size:12px;letter-spacing:.04em;text-transform:uppercase;
     color:var(--muted);margin-bottom:7px;font-weight:500;
@@ -114,6 +109,11 @@
 
   /* ---------- YEAR / PLAY CONTROLS ---------- */
   .year-control{flex:2;min-width:360px;display:flex;flex-direction:column;}
+  @media (max-width:600px){
+    html,body{overflow-x:hidden;}
+    .select-row{gap:14px;}
+    .field, .year-control{min-width:0;width:100%;flex:1 1 100%;}
+  }
   .year-slider-row{display:flex;align-items:center;gap:16px;}
   input[type=range]{
     -webkit-appearance:none;appearance:none;flex:1;min-width:0;display:block;
